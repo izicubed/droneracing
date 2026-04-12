@@ -3,45 +3,51 @@
 import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 
-type Phase = "IDLE" | "COUNTDOWN" | "BEEP" | "GO" | "RACING" | "STOPPED" | "ERROR";
+type Phase = "IDLE" | "COUNTDOWN" | "BEEP" | "GO" | "RACING" | "STOPPED";
 
-// Preloaded audio — iOS requires reuse of the same object after unlock
-const sounds: Record<string, HTMLAudioElement> = {};
+// Single shared AudioContext
+let actx: AudioContext | null = null;
+const buffers: Record<string, AudioBuffer> = {};
 
-function getAudio(src: string): HTMLAudioElement {
-  if (!sounds[src]) sounds[src] = new Audio(src);
-  return sounds[src];
+function getCtx(): AudioContext {
+  if (!actx) actx = new AudioContext();
+  return actx;
+}
+
+async function loadBuffers() {
+  const ctx = getCtx();
+  if (ctx.state === "suspended") await ctx.resume();
+  for (const src of ["/audio/stage.mp3", "/audio/buzzer.mp3"]) {
+    if (buffers[src]) continue;
+    try {
+      const res = await fetch(src);
+      const ab = await res.arrayBuffer();
+      buffers[src] = await ctx.decodeAudioData(ab);
+    } catch {}
+  }
+}
+
+function playBuffer(src: string) {
+  const ctx = getCtx();
+  const buf = buffers[src];
+  if (!buf) return;
+  const node = ctx.createBufferSource();
+  node.buffer = buf;
+  node.connect(ctx.destination);
+  node.start(0);
 }
 
 function playClick() {
   try {
-    const ctx = new AudioContext();
-    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.02, ctx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+    const ctx = getCtx();
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.015), ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length) * 0.12;
     const src = ctx.createBufferSource();
-    const gain = ctx.createGain();
-    gain.gain.value = 0.15;
     src.buffer = buf;
-    src.connect(gain);
-    gain.connect(ctx.destination);
-    src.start();
+    src.connect(ctx.destination);
+    src.start(0);
   } catch {}
-}
-
-function unlockAudio() {
-  ["/audio/stage.mp3", "/audio/buzzer.mp3"].forEach((src) => {
-    const a = getAudio(src);
-    a.volume = 0;
-    a.play().then(() => { a.pause(); a.currentTime = 0; a.volume = 1; }).catch(() => {});
-  });
-}
-
-function playSound(src: string) {
-  const audio = getAudio(src);
-  audio.currentTime = 0;
-  audio.volume = 1;
-  audio.play().catch(() => {});
 }
 
 function formatTime(ms: number) {
@@ -51,9 +57,7 @@ function formatTime(ms: number) {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}.${String(cs).padStart(2, "0")}`;
 }
 
-function NumInput({
-  label, unit, value, onChange, min, max, step,
-}: {
+function NumInput({ label, unit, value, onChange, min, max, step }: {
   label: string; unit: string; value: number;
   onChange: (v: number) => void; min: number; max: number; step: number;
 }) {
@@ -79,7 +83,7 @@ function NumInput({
 export default function Home() {
   const [phase, setPhase] = useState<Phase>("IDLE");
   const [countdown, setCountdown] = useState(0);
-  const [beep, setBeep] = useState({ n: 0, total: 5 });
+  const [beep, setBeep] = useState({ n: 0, total: 3 });
   const [elapsed, setElapsed] = useState(0);
 
   const [countdownSec, setCountdownSec] = useState(5);
@@ -111,43 +115,36 @@ export default function Home() {
     setPhase("STOPPED");
   }
 
-  async function runSequence() {
+  async function runSequence(cSec: number, bCount: number, dMin: number, dMax: number) {
     abortRef.current = false;
 
-    const sleep = (ms: number) =>
-      new Promise<void>((res) => {
-        const t = setTimeout(res, ms);
-        const check = setInterval(() => {
-          if (abortRef.current) { clearTimeout(t); clearInterval(check); res(); }
-        }, 50);
-        setTimeout(() => clearInterval(check), ms + 100);
-      });
+    const sleep = (ms: number) => new Promise<void>((res) => {
+      const id = setTimeout(res, ms);
+      const iv = setInterval(() => {
+        if (abortRef.current) { clearTimeout(id); clearInterval(iv); res(); }
+      }, 30);
+    });
 
-    // Countdown
-    for (let i = countdownSec; i >= 1; i--) {
+    for (let i = cSec; i >= 1; i--) {
       if (abortRef.current) return;
       setPhase("COUNTDOWN");
       setCountdown(i);
       await sleep(1000);
     }
 
-    // Beeps
-    for (let i = 1; i <= beepCount; i++) {
+    for (let i = 1; i <= bCount; i++) {
       if (abortRef.current) return;
       setPhase("BEEP");
-      setBeep({ n: i, total: beepCount });
-      playSound("/audio/stage.mp3");
+      setBeep({ n: i, total: bCount });
+      playBuffer("/audio/stage.mp3");
       await sleep(1000);
     }
 
-    // Random delay
     if (abortRef.current) return;
-    const randomDelay = delayMin * 1000 + Math.random() * (delayMax - delayMin) * 1000;
-    await sleep(randomDelay);
+    await sleep(dMin * 1000 + Math.random() * (dMax - dMin) * 1000);
 
-    // GO
     if (abortRef.current) return;
-    playSound("/audio/buzzer.mp3");
+    playBuffer("/audio/buzzer.mp3");
     setPhase("GO");
     await sleep(800);
 
@@ -156,12 +153,13 @@ export default function Home() {
     startRace();
   }
 
-  function handleRingTap() {
-    unlockAudio();
+  async function handleRingTap() {
     playClick();
-    if (phase === "IDLE" || phase === "STOPPED" || phase === "ERROR") {
+    await loadBuffers();
+
+    if (phase === "IDLE" || phase === "STOPPED") {
       setElapsed(0);
-      runSequence();
+      runSequence(countdownSec, beepCount, delayMin, delayMax);
     } else if (phase === "RACING") {
       stopRace();
     } else {
@@ -178,7 +176,6 @@ export default function Home() {
     phase === "GO"        ? "border-green-400 shadow-[0_0_50px_#4ade80]" :
     phase === "BEEP"      ? "border-yellow-400 shadow-[0_0_35px_#facc15]" :
     phase === "COUNTDOWN" ? "border-orange-500 shadow-[0_0_25px_#f97316]" :
-    phase === "ERROR"     ? "border-red-500" :
                             "border-zinc-700";
 
   const textColor =
@@ -187,7 +184,6 @@ export default function Home() {
     phase === "GO"        ? "text-green-400" :
     phase === "BEEP"      ? "text-yellow-400" :
     phase === "COUNTDOWN" ? "text-orange-400" :
-    phase === "ERROR"     ? "text-red-500" :
                             "text-zinc-500";
 
   const displayValue =
@@ -211,8 +207,7 @@ export default function Home() {
     phase === "BEEP"      ? `beep ${beep.n} of ${beep.total}` :
     phase === "GO"        ? "race start!" :
     phase === "RACING"    ? "tap to stop" :
-    phase === "STOPPED"   ? "tap to restart" :
-                            "";
+                            "tap to restart";
 
   return (
     <main className="h-screen bg-zinc-950 flex flex-col items-center justify-between py-10 px-6 overflow-hidden select-none">
@@ -237,7 +232,7 @@ export default function Home() {
 
       <div className={clsx(
         "w-full grid grid-cols-2 gap-x-6 gap-y-4 px-2 transition-opacity duration-300",
-        (phase !== "IDLE" && phase !== "STOPPED" && phase !== "ERROR") ? "opacity-0 pointer-events-none" : "opacity-100",
+        phase !== "IDLE" && phase !== "STOPPED" ? "opacity-0 pointer-events-none" : "opacity-100",
       )}>
         <NumInput label="Countdown" unit="sec" value={countdownSec}
           onChange={setCountdownSec} min={1} max={60} step={1} />
