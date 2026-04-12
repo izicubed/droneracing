@@ -5,8 +5,26 @@ import clsx from "clsx";
 
 type Phase = "IDLE" | "COUNTDOWN" | "BEEP" | "GO" | "RACING" | "STOPPED" | "ERROR";
 
+// Preloaded audio — iOS requires reuse of the same object after unlock
+const sounds: Record<string, HTMLAudioElement> = {};
+
+function getAudio(src: string): HTMLAudioElement {
+  if (!sounds[src]) sounds[src] = new Audio(src);
+  return sounds[src];
+}
+
+function unlockAudio() {
+  ["/audio/stage.mp3", "/audio/buzzer.mp3"].forEach((src) => {
+    const a = getAudio(src);
+    a.volume = 0;
+    a.play().then(() => { a.pause(); a.currentTime = 0; a.volume = 1; }).catch(() => {});
+  });
+}
+
 function playSound(src: string) {
-  const audio = new Audio(src);
+  const audio = getAudio(src);
+  audio.currentTime = 0;
+  audio.volume = 1;
   audio.play().catch(() => {});
 }
 
@@ -123,6 +141,7 @@ export default function Home() {
   }
 
   function handleRingTap() {
+    unlockAudio();
     if (phase === "IDLE" || phase === "STOPPED" || phase === "ERROR") {
       setElapsed(0);
       runSequence();
