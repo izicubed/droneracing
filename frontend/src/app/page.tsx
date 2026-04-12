@@ -5,11 +5,10 @@ import clsx from "clsx";
 
 type Phase = "IDLE" | "COUNTDOWN" | "BEEP" | "GO" | "RACING" | "STOPPED";
 
-// Single shared AudioContext
 let actx: AudioContext | null = null;
-const buffers: Record<string, AudioBuffer> = {};
+const audioBuffers: Record<string, AudioBuffer> = {};
 
-function getCtx(): AudioContext {
+function getCtx() {
   if (!actx) actx = new AudioContext();
   return actx;
 }
@@ -18,23 +17,22 @@ async function loadBuffers() {
   const ctx = getCtx();
   if (ctx.state === "suspended") await ctx.resume();
   for (const src of ["/audio/stage.mp3", "/audio/buzzer.mp3"]) {
-    if (buffers[src]) continue;
+    if (audioBuffers[src]) continue;
     try {
-      const res = await fetch(src);
-      const ab = await res.arrayBuffer();
-      buffers[src] = await ctx.decodeAudioData(ab);
+      const ab = await (await fetch(src)).arrayBuffer();
+      audioBuffers[src] = await ctx.decodeAudioData(ab);
     } catch {}
   }
 }
 
 function playBuffer(src: string) {
   const ctx = getCtx();
-  const buf = buffers[src];
+  const buf = audioBuffers[src];
   if (!buf) return;
-  const node = ctx.createBufferSource();
-  node.buffer = buf;
-  node.connect(ctx.destination);
-  node.start(0);
+  const n = ctx.createBufferSource();
+  n.buffer = buf;
+  n.connect(ctx.destination);
+  n.start(0);
 }
 
 function playClick() {
@@ -43,10 +41,10 @@ function playClick() {
     const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.015), ctx.sampleRate);
     const d = buf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length) * 0.12;
-    const src = ctx.createBufferSource();
-    src.buffer = buf;
-    src.connect(ctx.destination);
-    src.start(0);
+    const s = ctx.createBufferSource();
+    s.buffer = buf;
+    s.connect(ctx.destination);
+    s.start(0);
   } catch {}
 }
 
@@ -65,18 +63,47 @@ function NumInput({ label, unit, value, onChange, min, max, step }: {
     <div className="flex flex-col items-center gap-0.5">
       <span className="text-[10px] text-zinc-500 uppercase tracking-widest">{label}</span>
       <div className="flex items-center gap-2">
-        <button
-          onClick={() => onChange(Math.max(min, +(value - step).toFixed(1)))}
-          className="w-7 h-7 rounded-full border border-zinc-700 text-zinc-400 hover:border-orange-500 hover:text-orange-500 active:scale-90 transition text-base leading-none"
-        >−</button>
+        <button onClick={() => onChange(Math.max(min, +(value - step).toFixed(1)))}
+          className="w-7 h-7 rounded-full border border-zinc-700 text-zinc-400 hover:border-orange-500 hover:text-orange-500 active:scale-90 transition text-base leading-none">−</button>
         <span className="text-xl font-bold text-white w-12 text-center tabular-nums">{value}</span>
-        <button
-          onClick={() => onChange(Math.min(max, +(value + step).toFixed(1)))}
-          className="w-7 h-7 rounded-full border border-zinc-700 text-zinc-400 hover:border-orange-500 hover:text-orange-500 active:scale-90 transition text-base leading-none"
-        >+</button>
+        <button onClick={() => onChange(Math.min(max, +(value + step).toFixed(1)))}
+          className="w-7 h-7 rounded-full border border-zinc-700 text-zinc-400 hover:border-orange-500 hover:text-orange-500 active:scale-90 transition text-base leading-none">+</button>
       </div>
       <span className="text-[10px] text-zinc-600">{unit}</span>
     </div>
+  );
+}
+
+// SVG ring with progress
+const R = 104;
+const CIRC = 2 * Math.PI * R;
+
+function Ring({ progress, color, children, onClick }: {
+  progress: number; color: string; children: React.ReactNode; onClick: () => void;
+}) {
+  const offset = CIRC * (1 - Math.max(0, Math.min(1, progress)));
+  return (
+    <button
+      onClick={onClick}
+      className="relative w-56 h-56 flex items-center justify-center active:scale-95 transition-transform duration-150"
+    >
+      <svg className="-rotate-90 absolute inset-0" width="224" height="224" viewBox="0 0 224 224">
+        {/* Track */}
+        <circle cx="112" cy="112" r={R} fill="none" stroke="#27272a" strokeWidth="6" />
+        {/* Progress */}
+        <circle
+          cx="112" cy="112" r={R} fill="none"
+          stroke={color} strokeWidth="6"
+          strokeDasharray={CIRC}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          style={{ transition: "stroke-dashoffset 0.15s linear, stroke 0.3s" }}
+        />
+      </svg>
+      <div className="relative z-10 flex items-center justify-center">
+        {children}
+      </div>
+    </button>
   );
 }
 
@@ -85,6 +112,7 @@ export default function Home() {
   const [countdown, setCountdown] = useState(0);
   const [beep, setBeep] = useState({ n: 0, total: 3 });
   const [elapsed, setElapsed] = useState(0);
+  const [cdProgress, setCdProgress] = useState(0);
 
   const [countdownSec, setCountdownSec] = useState(5);
   const [beepCount, setBeepCount] = useState(3);
@@ -94,10 +122,12 @@ export default function Home() {
   const abortRef = useRef(false);
   const raceStartRef = useRef(0);
   const rafRef = useRef(0);
+  const cdRafRef = useRef(0);
 
   function stopAll() {
     abortRef.current = true;
     cancelAnimationFrame(rafRef.current);
+    cancelAnimationFrame(cdRafRef.current);
   }
 
   function startRace() {
@@ -125,12 +155,23 @@ export default function Home() {
       }, 30);
     });
 
+    // Smooth countdown progress via RAF
+    const cdStart = Date.now();
+    const cdTotal = cSec * 1000;
+    const trackCd = () => {
+      const p = 1 - (Date.now() - cdStart) / cdTotal;
+      setCdProgress(Math.max(0, p));
+      if (!abortRef.current && p > 0) cdRafRef.current = requestAnimationFrame(trackCd);
+    };
+    cdRafRef.current = requestAnimationFrame(trackCd);
+
     for (let i = cSec; i >= 1; i--) {
       if (abortRef.current) return;
       setPhase("COUNTDOWN");
       setCountdown(i);
       await sleep(1000);
     }
+    cancelAnimationFrame(cdRafRef.current);
 
     for (let i = 1; i <= bCount; i++) {
       if (abortRef.current) return;
@@ -156,9 +197,9 @@ export default function Home() {
   async function handleRingTap() {
     playClick();
     await loadBuffers();
-
     if (phase === "IDLE" || phase === "STOPPED") {
       setElapsed(0);
+      setCdProgress(0);
       runSequence(countdownSec, beepCount, delayMin, delayMax);
     } else if (phase === "RACING") {
       stopRace();
@@ -170,21 +211,28 @@ export default function Home() {
 
   useEffect(() => () => stopAll(), []);
 
+  // Progress value 0–1 for the ring
+  const progress =
+    phase === "COUNTDOWN" ? cdProgress :
+    phase === "BEEP"      ? beep.n / beep.total :
+    phase === "GO"        ? 1 :
+    phase === "RACING"    ? (elapsed % 60000) / 60000 :
+    phase === "STOPPED"   ? (elapsed % 60000) / 60000 :
+    0;
+
   const ringColor =
-    phase === "RACING"    ? "border-green-400 shadow-[0_0_50px_#4ade80]" :
-    phase === "STOPPED"   ? "border-zinc-500" :
-    phase === "GO"        ? "border-green-400 shadow-[0_0_50px_#4ade80]" :
-    phase === "BEEP"      ? "border-yellow-400 shadow-[0_0_35px_#facc15]" :
-    phase === "COUNTDOWN" ? "border-orange-500 shadow-[0_0_25px_#f97316]" :
-                            "border-zinc-700";
+    phase === "RACING" || phase === "GO" ? "#4ade80" :
+    phase === "STOPPED"                  ? "#71717a" :
+    phase === "BEEP"                     ? "#facc15" :
+    phase === "COUNTDOWN"                ? "#f97316" :
+    "#3f3f46";
 
   const textColor =
-    phase === "RACING"    ? "text-green-400" :
-    phase === "STOPPED"   ? "text-zinc-300" :
-    phase === "GO"        ? "text-green-400" :
-    phase === "BEEP"      ? "text-yellow-400" :
-    phase === "COUNTDOWN" ? "text-orange-400" :
-                            "text-zinc-500";
+    phase === "RACING" || phase === "GO" ? "text-green-400" :
+    phase === "STOPPED"                  ? "text-zinc-300" :
+    phase === "BEEP"                     ? "text-yellow-400" :
+    phase === "COUNTDOWN"                ? "text-orange-400" :
+    "text-zinc-500";
 
   const displayValue =
     phase === "COUNTDOWN" ? countdown :
@@ -192,14 +240,14 @@ export default function Home() {
     phase === "GO"        ? "GO!" :
     phase === "RACING"    ? formatTime(elapsed) :
     phase === "STOPPED"   ? formatTime(elapsed) :
-                            "START";
+    "START";
 
   const textSize =
     phase === "RACING" || phase === "STOPPED" ? "text-3xl" :
     phase === "COUNTDOWN"                     ? "text-6xl" :
     phase === "GO"                            ? "text-5xl" :
     phase === "BEEP"                          ? "text-4xl" :
-                                                "text-2xl";
+    "text-2xl";
 
   const phaseLabel =
     phase === "IDLE"      ? "tap to start" :
@@ -207,24 +255,18 @@ export default function Home() {
     phase === "BEEP"      ? `beep ${beep.n} of ${beep.total}` :
     phase === "GO"        ? "race start!" :
     phase === "RACING"    ? "tap to stop" :
-                            "tap to restart";
+    "tap to restart";
 
   return (
     <main className="h-screen bg-zinc-950 flex flex-col items-center justify-between py-10 px-6 overflow-hidden select-none">
 
       <p className="text-xs text-zinc-600 uppercase tracking-[0.2em]">FPV Timer</p>
 
-      <button
-        onClick={handleRingTap}
-        className={clsx(
-          "w-56 h-56 rounded-full border-4 flex items-center justify-center transition-all duration-300 active:scale-95",
-          ringColor,
-        )}
-      >
-        <span className={clsx("font-black tabular-nums transition-colors duration-150", textColor, textSize)}>
+      <Ring progress={progress} color={ringColor} onClick={handleRingTap}>
+        <span className={clsx("font-black tabular-nums", textColor, textSize)}>
           {displayValue}
         </span>
-      </button>
+      </Ring>
 
       <p className={clsx("text-xs uppercase tracking-widest -mt-4", textColor)}>
         {phaseLabel}
@@ -234,14 +276,10 @@ export default function Home() {
         "w-full grid grid-cols-2 gap-x-6 gap-y-4 px-2 transition-opacity duration-300",
         phase !== "IDLE" && phase !== "STOPPED" ? "opacity-0 pointer-events-none" : "opacity-100",
       )}>
-        <NumInput label="Countdown" unit="sec" value={countdownSec}
-          onChange={setCountdownSec} min={1} max={60} step={1} />
-        <NumInput label="Beeps" unit="pcs" value={beepCount}
-          onChange={setBeepCount} min={1} max={10} step={1} />
-        <NumInput label="Delay min" unit="sec" value={delayMin}
-          onChange={setDelayMin} min={0.1} max={delayMax} step={0.1} />
-        <NumInput label="Delay max" unit="sec" value={delayMax}
-          onChange={setDelayMax} min={delayMin} max={10} step={0.1} />
+        <NumInput label="Countdown" unit="sec" value={countdownSec} onChange={setCountdownSec} min={1} max={60} step={1} />
+        <NumInput label="Beeps" unit="pcs" value={beepCount} onChange={setBeepCount} min={1} max={10} step={1} />
+        <NumInput label="Delay min" unit="sec" value={delayMin} onChange={setDelayMin} min={0.1} max={delayMax} step={0.1} />
+        <NumInput label="Delay max" unit="sec" value={delayMax} onChange={setDelayMax} min={delayMin} max={10} step={0.1} />
       </div>
 
       <div className="h-4" />
