@@ -315,10 +315,10 @@ export default function Home() {
         "w-full grid grid-cols-2 gap-x-6 gap-y-4 px-2 transition-opacity duration-300",
         isActive ? "opacity-0 pointer-events-none" : "opacity-100",
       )}>
-        <NumInput label="Countdown" unit="sec" value={countdownSec} onChange={setCountdownSec} min={1} max={60} step={1} />
-        <NumInput label="Beeps" unit="pcs" value={beepCount} onChange={setBeepCount} min={1} max={10} step={1} />
-        <NumInput label="Delay min" unit="sec" value={delayMin} onChange={setDelayMin} min={0.1} max={delayMax} step={0.1} />
-        <NumInput label="Delay max" unit="sec" value={delayMax} onChange={setDelayMax} min={delayMin} max={10} step={0.1} />
+        <NumInput label="Delay" unit="sec" value={countdownSec} onChange={setCountdownSec} min={1} max={60} step={1} />
+        <NumInput label="Countdown" unit="sec" value={beepCount} onChange={setBeepCount} min={1} max={10} step={1} />
+        <NumInput label="Start min" unit="sec" value={delayMin} onChange={setDelayMin} min={0.1} max={delayMax} step={0.1} />
+        <NumInput label="Start max" unit="sec" value={delayMax} onChange={setDelayMax} min={delayMin} max={10} step={0.1} />
       </div>
 
       {/* Packs counter — always visible */}
@@ -341,7 +341,7 @@ export default function Home() {
       </div>
 
       {/* Flight log */}
-      <div className="w-full mt-auto">
+      <div className="w-full">
         <button
           onClick={() => setLogOpen(o => !o)}
           className="w-full flex items-center justify-between px-3 py-2 border border-zinc-800 rounded-lg text-zinc-500 text-xs uppercase tracking-widest hover:border-zinc-700 active:scale-[0.99] transition"
