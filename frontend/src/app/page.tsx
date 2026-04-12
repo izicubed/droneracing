@@ -76,7 +76,6 @@ function NumInput({ label, unit, value, onChange, min, max, step }: {
   );
 }
 
-// SVG ring with progress
 const R = 104;
 const CIRC = 2 * Math.PI * R;
 
@@ -97,7 +96,7 @@ function Ring({ progress, color, children, onClick }: {
           strokeDasharray={CIRC}
           strokeDashoffset={offset}
           strokeLinecap="round"
-          style={{ transition: "stroke-dashoffset 0.15s linear, stroke 0.3s" }}
+          style={{ transition: "stroke 0.3s" }}
         />
       </svg>
       <div className="relative z-10 flex items-center justify-center">
@@ -127,29 +126,41 @@ export default function Home() {
   const logIdRef = useRef(0);
 
   const abortRef = useRef(false);
+  // Timing refs — set synchronously before phase changes, read inside useEffect RAF
   const raceStartRef = useRef(0);
-  const rafRef = useRef(0);
-  const cdRafRef = useRef(0);
-  const delayRafRef = useRef(0);
+  const cdStartRef = useRef(0);
+  const cdTotalRef = useRef(0);
+  const delayStartRef = useRef(0);
+  const delayTotalRef = useRef(0);
+
+  // Single animation loop driven by phase — reliable on iOS Safari
+  useEffect(() => {
+    if (phase !== "COUNTDOWN" && phase !== "DELAY" && phase !== "RACING") return;
+    let raf: number;
+    const tick = () => {
+      if (phase === "COUNTDOWN") {
+        const p = 1 - (Date.now() - cdStartRef.current) / cdTotalRef.current;
+        setCdProgress(Math.max(0, p));
+      } else if (phase === "DELAY") {
+        const p = (Date.now() - delayStartRef.current) / delayTotalRef.current;
+        setDelayProgress(Math.min(1, p));
+      } else if (phase === "RACING") {
+        setElapsed(Date.now() - raceStartRef.current);
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [phase]);
+
+  // Abort on unmount
+  useEffect(() => () => { abortRef.current = true; }, []);
 
   function stopAll() {
     abortRef.current = true;
-    cancelAnimationFrame(rafRef.current);
-    cancelAnimationFrame(cdRafRef.current);
-    cancelAnimationFrame(delayRafRef.current);
-  }
-
-  function startRace() {
-    raceStartRef.current = Date.now();
-    const tick = () => {
-      setElapsed(Date.now() - raceStartRef.current);
-      rafRef.current = requestAnimationFrame(tick);
-    };
-    rafRef.current = requestAnimationFrame(tick);
   }
 
   function stopRace() {
-    cancelAnimationFrame(rafRef.current);
     const finalTime = Date.now() - raceStartRef.current;
     setElapsed(finalTime);
     setPhase("STOPPED");
@@ -166,27 +177,22 @@ export default function Home() {
       }, 30);
     });
 
+    // READY: full ring, 500ms pause
     setPhase("READY");
     await sleep(500);
     if (abortRef.current) return;
 
-    const cdStart = Date.now();
-    const cdTotal = cSec * 1000;
-    const trackCd = () => {
-      const p = 1 - (Date.now() - cdStart) / cdTotal;
-      setCdProgress(Math.max(0, p));
-      if (!abortRef.current && p > 0) cdRafRef.current = requestAnimationFrame(trackCd);
-    };
-    cdRafRef.current = requestAnimationFrame(trackCd);
-
+    // COUNTDOWN: set timing refs before phase change so useEffect RAF reads correct values
+    cdStartRef.current = Date.now();
+    cdTotalRef.current = cSec * 1000;
     for (let i = cSec; i >= 1; i--) {
       if (abortRef.current) return;
       setPhase("COUNTDOWN");
       setCountdown(i);
       await sleep(1000);
     }
-    cancelAnimationFrame(cdRafRef.current);
 
+    // BEEP
     for (let i = 1; i <= bCount; i++) {
       if (abortRef.current) return;
       setPhase("BEEP");
@@ -195,29 +201,26 @@ export default function Home() {
       await sleep(1000);
     }
 
+    // DELAY: set timing refs before phase change
     if (abortRef.current) return;
     const delayMs = dMin * 1000 + Math.random() * (dMax - dMin) * 1000;
-    setPhase("DELAY");
-    setDelayProgress(0);
+    delayStartRef.current = Date.now();
+    delayTotalRef.current = delayMs;
     setDelayTotal(delayMs);
-    const delayStart = Date.now();
-    const trackDelay = () => {
-      const p = (Date.now() - delayStart) / delayMs;
-      setDelayProgress(Math.min(1, p));
-      if (!abortRef.current && p < 1) delayRafRef.current = requestAnimationFrame(trackDelay);
-    };
-    delayRafRef.current = requestAnimationFrame(trackDelay);
+    setDelayProgress(0);
+    setPhase("DELAY");
     await sleep(delayMs);
-    cancelAnimationFrame(delayRafRef.current);
 
+    // GO
     if (abortRef.current) return;
     playBuffer("/audio/buzzer.mp3");
     setPhase("GO");
     await sleep(800);
 
+    // RACING: set timing ref before phase change
     if (abortRef.current) return;
+    raceStartRef.current = Date.now();
     setPhase("RACING");
-    startRace();
   }
 
   async function handleRingTap() {
@@ -236,8 +239,6 @@ export default function Home() {
     }
   }
 
-  useEffect(() => () => stopAll(), []);
-
   const progress =
     phase === "READY"     ? 1 :
     phase === "COUNTDOWN" ? cdProgress :
@@ -249,19 +250,19 @@ export default function Home() {
     0;
 
   const ringColor =
-    phase === "RACING" || phase === "GO" ? "#4ade80" :
-    phase === "STOPPED"                  ? "#71717a" :
-    phase === "BEEP"                     ? "#facc15" :
-    phase === "DELAY"                    ? "#fb923c" :
-    phase === "READY" || phase === "COUNTDOWN" ? "#f97316" :
+    phase === "RACING" || phase === "GO"        ? "#4ade80" :
+    phase === "STOPPED"                         ? "#71717a" :
+    phase === "BEEP"                            ? "#facc15" :
+    phase === "DELAY"                           ? "#fb923c" :
+    phase === "READY" || phase === "COUNTDOWN"  ? "#f97316" :
     "#3f3f46";
 
   const textColor =
-    phase === "RACING" || phase === "GO" ? "text-green-400" :
-    phase === "STOPPED"                  ? "text-zinc-300" :
-    phase === "BEEP"                     ? "text-yellow-400" :
-    phase === "DELAY"                    ? "text-orange-300" :
-    phase === "READY" || phase === "COUNTDOWN" ? "text-orange-400" :
+    phase === "RACING" || phase === "GO"        ? "text-green-400" :
+    phase === "STOPPED"                         ? "text-zinc-300" :
+    phase === "BEEP"                            ? "text-yellow-400" :
+    phase === "DELAY"                           ? "text-orange-300" :
+    phase === "READY" || phase === "COUNTDOWN"  ? "text-orange-400" :
     "text-zinc-500";
 
   const displayValue =
