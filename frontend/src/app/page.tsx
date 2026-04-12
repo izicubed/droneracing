@@ -13,6 +13,22 @@ function getAudio(src: string): HTMLAudioElement {
   return sounds[src];
 }
 
+function playClick() {
+  try {
+    const ctx = new AudioContext();
+    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.02, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+    const src = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    gain.gain.value = 0.15;
+    src.buffer = buf;
+    src.connect(gain);
+    gain.connect(ctx.destination);
+    src.start();
+  } catch {}
+}
+
 function unlockAudio() {
   ["/audio/stage.mp3", "/audio/buzzer.mp3"].forEach((src) => {
     const a = getAudio(src);
@@ -66,7 +82,7 @@ export default function Home() {
   const [beep, setBeep] = useState({ n: 0, total: 5 });
   const [elapsed, setElapsed] = useState(0);
 
-  const [countdownSec, setCountdownSec] = useState(10);
+  const [countdownSec, setCountdownSec] = useState(5);
   const [beepCount, setBeepCount] = useState(3);
   const [delayMin, setDelayMin] = useState(0.5);
   const [delayMax, setDelayMax] = useState(2.5);
@@ -142,6 +158,7 @@ export default function Home() {
 
   function handleRingTap() {
     unlockAudio();
+    playClick();
     if (phase === "IDLE" || phase === "STOPPED" || phase === "ERROR") {
       setElapsed(0);
       runSequence();
