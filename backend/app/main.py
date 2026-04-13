@@ -9,12 +9,10 @@ from app.websockets.timer import timer_ws_endpoint
 
 app = FastAPI(title="Drone Racing API", version="0.1.0")
 
-origins = [o.strip() for o in settings.cors_origins.split(",")]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
