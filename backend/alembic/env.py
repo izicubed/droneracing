@@ -1,5 +1,6 @@
+import asyncio
 from logging.config import fileConfig
-from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import create_async_engine
 from alembic import context
 
 from app.config import settings
@@ -13,13 +14,10 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
-# Use sync URL for alembic (replace asyncpg driver with psycopg2)
-sync_url = settings.database_url.replace("postgresql+asyncpg://", "postgresql://")
-
 
 def run_migrations_offline() -> None:
     context.configure(
-        url=sync_url,
+        url=settings.database_url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -28,16 +26,20 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
-def run_migrations_online() -> None:
-    engine = create_engine(sync_url)
-    with engine.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
-        with context.begin_transaction():
-            context.run_migrations()
-    engine.dispose()
+def do_run_migrations(connection):
+    context.configure(connection=connection, target_metadata=target_metadata)
+    with context.begin_transaction():
+        context.run_migrations()
+
+
+async def run_migrations_online() -> None:
+    engine = create_async_engine(settings.database_url)
+    async with engine.connect() as connection:
+        await connection.run_sync(do_run_migrations)
+    await engine.dispose()
 
 
 if context.is_offline_mode():
     run_migrations_offline()
 else:
-    run_migrations_online()
+    asyncio.run(run_migrations_online())
