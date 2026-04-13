@@ -161,15 +161,42 @@ export default function Home() {
   const [delayProgress, setDelayProgress] = useState(0);
   const [delayTotal, setDelayTotal] = useState(0);
 
-  const [countdownSec, setCountdownSec] = useState(5);
-  const [beepCount, setBeepCount] = useState(3);
-  const [delayMin, setDelayMin] = useState(0.5);
-  const [delayMax, setDelayMax] = useState(2.5);
+  const [countdownSec, setCountdownSec] = useState(() => {
+    try { const v = localStorage.getItem("fpv_countdownSec"); return v ? Number(v) : 5; } catch { return 5; }
+  });
+  const [beepCount, setBeepCount] = useState(() => {
+    try { const v = localStorage.getItem("fpv_beepCount"); return v ? Number(v) : 3; } catch { return 3; }
+  });
+  const [delayMin, setDelayMin] = useState(() => {
+    try { const v = localStorage.getItem("fpv_delayMin"); return v ? Number(v) : 0.5; } catch { return 0.5; }
+  });
+  const [delayMax, setDelayMax] = useState(() => {
+    try { const v = localStorage.getItem("fpv_delayMax"); return v ? Number(v) : 2.5; } catch { return 2.5; }
+  });
 
-  const [packs, setPacks] = useState(0);
-  const [flightLog, setFlightLog] = useState<FlightEntry[]>([]);
+  const [packs, setPacks] = useState(() => {
+    try { const v = localStorage.getItem("fpv_packs"); return v ? Number(v) : 0; } catch { return 0; }
+  });
+  const [flightLog, setFlightLog] = useState<FlightEntry[]>(() => {
+    try { const v = localStorage.getItem("fpv_flightLog"); return v ? JSON.parse(v) : []; } catch { return []; }
+  });
   const [logOpen, setLogOpen] = useState(false);
   const logIdRef = useRef(0);
+  // Sync logIdRef with restored flightLog so new entries get unique ids
+  useEffect(() => {
+    if (flightLog.length > 0) {
+      logIdRef.current = Math.max(...flightLog.map(e => e.id));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist settings and session state to localStorage
+  useEffect(() => { try { localStorage.setItem("fpv_countdownSec", String(countdownSec)); } catch {} }, [countdownSec]);
+  useEffect(() => { try { localStorage.setItem("fpv_beepCount", String(beepCount)); } catch {} }, [beepCount]);
+  useEffect(() => { try { localStorage.setItem("fpv_delayMin", String(delayMin)); } catch {} }, [delayMin]);
+  useEffect(() => { try { localStorage.setItem("fpv_delayMax", String(delayMax)); } catch {} }, [delayMax]);
+  useEffect(() => { try { localStorage.setItem("fpv_packs", String(packs)); } catch {} }, [packs]);
+  useEffect(() => { try { localStorage.setItem("fpv_flightLog", JSON.stringify(flightLog)); } catch {} }, [flightLog]);
 
   // Auth / profile state
   const [pilot, setPilot] = useState<PilotInfo | null>(null);
@@ -303,6 +330,8 @@ export default function Home() {
         ? new Date(flightLog[0].startedAt).toISOString()
         : new Date().toISOString();
       await saveTraining(packs, flightLog.map(e => e.time), sessionStart);
+      setPacks(0);
+      setFlightLog([]);
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 2500);
     } catch {
