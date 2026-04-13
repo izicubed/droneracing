@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -32,12 +32,12 @@ async def create_session(
     db: AsyncSession = Depends(get_db),
 ):
     pilot = await _get_pilot(current_user, db)
-    now = body.started_at or datetime.now(timezone.utc)
+    now = (body.started_at.replace(tzinfo=None) if body.started_at else datetime.utcnow())
     session = Session(
         pilot_id=pilot.id,
         type=SessionType.training,
         started_at=now,
-        ended_at=datetime.now(timezone.utc),
+        ended_at=datetime.utcnow(),
         pack_count=body.pack_count,
     )
     db.add(session)
