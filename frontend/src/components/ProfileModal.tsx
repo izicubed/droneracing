@@ -27,6 +27,7 @@ interface TrainingSession {
 interface Props {
   onClose: () => void;
   onLogout: () => void;
+  onPilotUpdated?: (pilot: Pilot) => void;
 }
 
 function formatTime(ms: number) {
@@ -78,7 +79,7 @@ function Avatar({ pilot, size = 48 }: { pilot: Pilot; size?: number }) {
   );
 }
 
-export default function ProfileModal({ onClose, onLogout }: Props) {
+export default function ProfileModal({ onClose, onLogout, onPilotUpdated }: Props) {
   const [pilot, setPilot] = useState<Pilot | null>(null);
   const [sessions, setSessions] = useState<TrainingSession[]>([]);
   const [editing, setEditing] = useState(false);
@@ -122,6 +123,7 @@ export default function ProfileModal({ onClose, onLogout }: Props) {
         setPilot(p);
         setCreating(false);
         setSessions([]);
+        onPilotUpdated?.(p);
       } else {
         const p = await api.authPut<Pilot>("/pilots/me", {
           callsign: form.callsign.trim(),
@@ -130,6 +132,7 @@ export default function ProfileModal({ onClose, onLogout }: Props) {
         });
         setPilot(p);
         setEditing(false);
+        onPilotUpdated?.(p);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to save");

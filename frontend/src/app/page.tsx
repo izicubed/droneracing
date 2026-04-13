@@ -506,6 +506,7 @@ export default function Home() {
         <ProfileModal
           onClose={() => setShowProfile(false)}
           onLogout={() => { setPilot(null); setSaveStatus("idle"); }}
+          onPilotUpdated={p => setPilot(p)}
         />
       )}
 
