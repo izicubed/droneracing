@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import AuthModal from "@/components/AuthModal";
 import ProfileModal from "@/components/ProfileModal";
-import { api, saveTraining, PilotInfo } from "@/lib/api";
+import AdminModal from "@/components/AdminModal";
+import { api, saveTraining, PilotInfo, getMe } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 
 type Phase = "IDLE" | "READY" | "COUNTDOWN" | "BEEP" | "DELAY" | "GO" | "RACING" | "STOPPED";
@@ -172,8 +173,10 @@ export default function Home() {
 
   // Auth / profile state
   const [pilot, setPilot] = useState<PilotInfo | null>(null);
+  const [isSuperadmin, setIsSuperadmin] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   const abortRef = useRef(false);
@@ -187,6 +190,7 @@ export default function Home() {
   useEffect(() => {
     if (!getToken()) return;
     api.get<PilotInfo>("/pilots/me").then(setPilot).catch(() => {});
+    getMe().then(u => setIsSuperadmin(u.role === "superadmin")).catch(() => {});
   }, []);
 
   // Single animation loop driven by phase — reliable on iOS Safari
@@ -309,6 +313,7 @@ export default function Home() {
 
   function handleAuthSuccess() {
     setShowAuth(false);
+    getMe().then(u => setIsSuperadmin(u.role === "superadmin")).catch(() => {});
     api.get<PilotInfo>("/pilots/me")
       .then(p => { setPilot(p); setShowProfile(false); })
       .catch(() => setShowProfile(true));
@@ -378,10 +383,20 @@ export default function Home() {
       {/* Header */}
       <div className="w-full flex items-center justify-between">
         <p className="text-xs text-zinc-600 uppercase tracking-[0.2em]">FPV Timer</p>
-        <UserButton
-          pilot={pilot}
-          onClick={() => pilot ? setShowProfile(true) : setShowAuth(true)}
-        />
+        <div className="flex items-center gap-2">
+          {isSuperadmin && (
+            <button
+              onClick={() => setShowAdmin(true)}
+              className="text-[10px] text-red-500 border border-red-500/40 rounded px-2 py-1 uppercase tracking-widest hover:bg-red-500/10 active:scale-90 transition"
+            >
+              Admin
+            </button>
+          )}
+          <UserButton
+            pilot={pilot}
+            onClick={() => pilot ? setShowProfile(true) : setShowAuth(true)}
+          />
+        </div>
       </div>
 
       <Ring progress={progress} color={ringColor} onClick={handleRingTap}>
@@ -505,9 +520,12 @@ export default function Home() {
       {showProfile && (
         <ProfileModal
           onClose={() => setShowProfile(false)}
-          onLogout={() => { setPilot(null); setSaveStatus("idle"); }}
+          onLogout={() => { setPilot(null); setIsSuperadmin(false); setSaveStatus("idle"); }}
           onPilotUpdated={p => setPilot(p)}
         />
+      )}
+      {showAdmin && (
+        <AdminModal onClose={() => setShowAdmin(false)} />
       )}
 
     </main>

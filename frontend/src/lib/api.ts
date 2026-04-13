@@ -43,6 +43,34 @@ export interface PilotInfo {
   avatar_url: string | null;
 }
 
+export interface AdminUser {
+  id: number;
+  email: string;
+  role: string;
+  created_at: string;
+  callsign: string | null;
+}
+
+export interface AdminSession {
+  id: number;
+  pack_count: number;
+  started_at: string;
+  ended_at: string | null;
+  laps: { lap_number: number; duration_ms: number }[];
+}
+
+export function getMe(): Promise<{ id: number; email: string; role: string }> {
+  return api.get("/auth/me");
+}
+
+export function getAdminUsers(): Promise<AdminUser[]> {
+  return api.get("/admin/users");
+}
+
+export function getAdminUserSessions(userId: number): Promise<AdminSession[]> {
+  return api.get(`/admin/users/${userId}/sessions`);
+}
+
 export async function saveTraining(packCount: number, laps: number[], startedAt?: string): Promise<void> {
   await api.authPost("/sessions/", {
     pack_count: packCount,
