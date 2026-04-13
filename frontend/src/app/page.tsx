@@ -2,6 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
+import AuthModal from "@/components/AuthModal";
+import ProfileModal from "@/components/ProfileModal";
+import { api, saveTraining, PilotInfo } from "@/lib/api";
+import { getToken } from "@/lib/auth";
 
 type Phase = "IDLE" | "READY" | "COUNTDOWN" | "BEEP" | "DELAY" | "GO" | "RACING" | "STOPPED";
 
@@ -106,6 +110,39 @@ function Ring({ progress, color, children, onClick }: {
   );
 }
 
+function UserButton({ pilot, onClick }: { pilot: PilotInfo | null; onClick: () => void }) {
+  if (pilot) {
+    const colors = ["#f97316", "#3b82f6", "#8b5cf6", "#10b981", "#ec4899"];
+    const color = colors[pilot.callsign.charCodeAt(0) % colors.length];
+    const initials = pilot.callsign.slice(0, 2).toUpperCase();
+    return (
+      <button
+        onClick={onClick}
+        className="w-8 h-8 rounded-full flex items-center justify-center font-black text-white text-xs active:scale-90 transition shrink-0"
+        style={{ background: color }}
+        title={pilot.callsign}
+      >
+        {pilot.avatar_url
+          ? <img src={pilot.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" />
+          : initials
+        }
+      </button>
+    );
+  }
+  return (
+    <button
+      onClick={onClick}
+      className="w-8 h-8 rounded-full border border-zinc-700 flex items-center justify-center text-zinc-500 hover:border-orange-500 hover:text-orange-500 active:scale-90 transition"
+      title="Sign in"
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+        <circle cx="12" cy="7" r="4"/>
+      </svg>
+    </button>
+  );
+}
+
 export default function Home() {
   const [phase, setPhase] = useState<Phase>("IDLE");
   const [countdown, setCountdown] = useState(0);
@@ -125,13 +162,24 @@ export default function Home() {
   const [logOpen, setLogOpen] = useState(false);
   const logIdRef = useRef(0);
 
+  // Auth / profile state
+  const [pilot, setPilot] = useState<PilotInfo | null>(null);
+  const [showAuth, setShowAuth] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+
   const abortRef = useRef(false);
-  // Timing refs — set synchronously before phase changes, read inside useEffect RAF
   const raceStartRef = useRef(0);
   const cdStartRef = useRef(0);
   const cdTotalRef = useRef(0);
   const delayStartRef = useRef(0);
   const delayTotalRef = useRef(0);
+
+  // Load pilot profile on mount if token exists
+  useEffect(() => {
+    if (!getToken()) return;
+    api.get<PilotInfo>("/pilots/me").then(setPilot).catch(() => {});
+  }, []);
 
   // Single animation loop driven by phase — reliable on iOS Safari
   useEffect(() => {
@@ -177,12 +225,10 @@ export default function Home() {
       }, 30);
     });
 
-    // READY: full ring, 500ms pause
     setPhase("READY");
     await sleep(500);
     if (abortRef.current) return;
 
-    // COUNTDOWN: set timing refs before phase change so useEffect RAF reads correct values
     cdStartRef.current = Date.now();
     cdTotalRef.current = cSec * 1000;
     for (let i = cSec; i >= 1; i--) {
@@ -192,7 +238,6 @@ export default function Home() {
       await sleep(1000);
     }
 
-    // BEEP
     for (let i = 1; i <= bCount; i++) {
       if (abortRef.current) return;
       setPhase("BEEP");
@@ -201,7 +246,6 @@ export default function Home() {
       await sleep(1000);
     }
 
-    // DELAY: set timing refs before phase change
     if (abortRef.current) return;
     const delayMs = dMin * 1000 + Math.random() * (dMax - dMin) * 1000;
     delayStartRef.current = Date.now();
@@ -211,13 +255,11 @@ export default function Home() {
     setPhase("DELAY");
     await sleep(delayMs);
 
-    // GO
     if (abortRef.current) return;
     playBuffer("/audio/buzzer.mp3");
     setPhase("GO");
     await sleep(800);
 
-    // RACING: set timing ref before phase change
     if (abortRef.current) return;
     raceStartRef.current = Date.now();
     setPhase("RACING");
@@ -238,6 +280,28 @@ export default function Home() {
       setPhase("IDLE");
     }
   }
+
+  async function handleSaveTraining() {
+    if (!pilot || saveStatus === "saving") return;
+    setSaveStatus("saving");
+    try {
+      await saveTraining(packs, flightLog.map(e => e.time));
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 2500);
+    } catch {
+      setSaveStatus("error");
+      setTimeout(() => setSaveStatus("idle"), 2500);
+    }
+  }
+
+  function handleAuthSuccess() {
+    setShowAuth(false);
+    api.get<PilotInfo>("/pilots/me")
+      .then(p => { setPilot(p); setShowProfile(false); })
+      .catch(() => setShowProfile(true));
+  }
+
+  const canSave = pilot && (packs > 0 || flightLog.length > 0);
 
   const progress =
     phase === "READY"     ? 1 :
@@ -298,7 +362,14 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-zinc-950 flex flex-col items-center py-8 px-6 gap-3 select-none">
 
-      <p className="text-xs text-zinc-600 uppercase tracking-[0.2em]">FPV Timer</p>
+      {/* Header */}
+      <div className="w-full flex items-center justify-between">
+        <p className="text-xs text-zinc-600 uppercase tracking-[0.2em]">FPV Timer</p>
+        <UserButton
+          pilot={pilot}
+          onClick={() => pilot ? setShowProfile(true) : setShowAuth(true)}
+        />
+      </div>
 
       <Ring progress={progress} color={ringColor} onClick={handleRingTap}>
         <span className={clsx("font-black tabular-nums", textColor, textSize)}>
@@ -321,7 +392,7 @@ export default function Home() {
         <NumInput label="Start max" unit="sec" value={delayMax} onChange={setDelayMax} min={delayMin} max={10} step={0.1} />
       </div>
 
-      {/* Packs counter — always visible */}
+      {/* Packs counter */}
       <div className="w-full flex justify-center py-1 border-t border-zinc-800/60">
         <div className="flex flex-col items-center gap-0.5">
           <span className="text-[10px] text-zinc-500 uppercase tracking-widest">Packs</span>
@@ -339,6 +410,27 @@ export default function Home() {
           <span className="text-[10px] text-zinc-600">packs flown</span>
         </div>
       </div>
+
+      {/* Save Training button */}
+      {canSave && (
+        <button
+          onClick={handleSaveTraining}
+          disabled={saveStatus === "saving"}
+          className={clsx(
+            "w-full py-2.5 rounded-xl text-sm font-bold transition active:scale-[0.98] disabled:opacity-50",
+            saveStatus === "saved"
+              ? "bg-green-500/20 text-green-400 border border-green-500/30"
+              : saveStatus === "error"
+              ? "bg-red-500/20 text-red-400 border border-red-500/30"
+              : "bg-orange-500/15 text-orange-400 border border-orange-500/30 hover:bg-orange-500/25",
+          )}
+        >
+          {saveStatus === "saving" ? "Saving..." :
+           saveStatus === "saved"  ? "Saved ✓" :
+           saveStatus === "error"  ? "Save failed — retry" :
+           "Save Training"}
+        </button>
+      )}
 
       {/* Flight log */}
       <div className="w-full">
@@ -387,6 +479,17 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      {/* Modals */}
+      {showAuth && (
+        <AuthModal onClose={() => setShowAuth(false)} onSuccess={handleAuthSuccess} />
+      )}
+      {showProfile && (
+        <ProfileModal
+          onClose={() => setShowProfile(false)}
+          onLogout={() => { setPilot(null); setSaveStatus("idle"); }}
+        />
+      )}
 
     </main>
   );

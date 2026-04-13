@@ -1,9 +1,10 @@
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const { headers: extraHeaders, ...rest } = init ?? {};
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...init?.headers },
-    ...init,
+    headers: { "Content-Type": "application/json", ...(extraHeaders as Record<string, string>) },
+    ...rest,
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -34,3 +35,18 @@ export const api = {
   authDelete: (path: string) =>
     request<void>(path, { method: "DELETE", headers: authHeader() }),
 };
+
+export interface PilotInfo {
+  id: number;
+  callsign: string;
+  real_name: string | null;
+  avatar_url: string | null;
+}
+
+export async function saveTraining(packCount: number, laps: number[]): Promise<void> {
+  await api.authPost("/sessions/", {
+    pack_count: packCount,
+    laps,
+    started_at: new Date().toISOString(),
+  });
+}

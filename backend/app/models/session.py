@@ -32,6 +32,7 @@ class Session(Base):
     started_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     ended_at: Mapped[datetime | None] = mapped_column(DateTime)
     notes: Mapped[str | None] = mapped_column(Text)
+    pack_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     pilot: Mapped["Pilot"] = relationship("Pilot", back_populates="sessions")
     laps: Mapped[list["Lap"]] = relationship("Lap", back_populates="session", cascade="all, delete-orphan")
