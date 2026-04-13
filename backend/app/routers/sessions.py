@@ -32,12 +32,15 @@ async def create_session(
     db: AsyncSession = Depends(get_db),
 ):
     pilot = await _get_pilot(current_user, db)
-    now = body.started_at or datetime.now(timezone.utc)
+    raw = body.started_at or datetime.now(timezone.utc)
+    # Strip timezone info since the DB column is TIMESTAMP WITHOUT TIME ZONE
+    now = raw.replace(tzinfo=None) if raw.tzinfo else raw
+    ended = datetime.now(timezone.utc).replace(tzinfo=None)
     session = Session(
         pilot_id=pilot.id,
         type=SessionType.training,
         started_at=now,
-        ended_at=datetime.now(timezone.utc),
+        ended_at=ended,
         pack_count=body.pack_count,
     )
     db.add(session)
@@ -56,6 +59,23 @@ async def create_session(
         .options(selectinload(Session.laps))
     )
     return result.scalar_one()
+
+
+@router.delete("/{session_id}", status_code=204)
+async def delete_session(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    pilot = await _get_pilot(current_user, db)
+    result = await db.execute(
+        select(Session).where(Session.id == session_id, Session.pilot_id == pilot.id)
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    await db.delete(session)
+    await db.commit()
 
 
 @router.get("/", response_model=list[TrainingResponse])

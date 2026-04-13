@@ -20,6 +20,7 @@ interface TrainingSession {
   id: number;
   pack_count: number;
   started_at: string;
+  ended_at: string | null;
   laps: Lap[];
 }
 
@@ -38,6 +39,14 @@ function formatTime(ms: number) {
 function formatDate(iso: string) {
   const d = new Date(iso);
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function formatWallTime(iso: string) {
+  const d = new Date(iso);
+  const h = String(d.getHours()).padStart(2, "0");
+  const m = String(d.getMinutes()).padStart(2, "0");
+  const s = String(d.getSeconds()).padStart(2, "0");
+  return `${h}:${m}:${s}`;
 }
 
 function Avatar({ pilot, size = 48 }: { pilot: Pilot; size?: number }) {
@@ -77,6 +86,7 @@ export default function ProfileModal({ onClose, onLogout }: Props) {
   const [form, setForm] = useState({ callsign: "", real_name: "", avatar_url: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -125,6 +135,18 @@ export default function ProfileModal({ onClose, onLogout }: Props) {
       setError(err instanceof Error ? err.message : "Failed to save");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleDeleteSession(id: number) {
+    setDeletingId(id);
+    try {
+      await api.authDelete(`/sessions/${id}`);
+      setSessions(prev => prev.filter(s => s.id !== id));
+    } catch {
+      // ignore
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -267,15 +289,29 @@ export default function ProfileModal({ onClose, onLogout }: Props) {
                     <div key={s.id} className="px-5 py-3 flex items-center justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <p className="text-zinc-300 text-sm font-medium">{formatDate(s.started_at)}</p>
+                        <p className="text-zinc-500 text-xs font-mono mt-0.5">
+                          {formatWallTime(s.started_at)}
+                          {s.ended_at ? ` → ${formatWallTime(s.ended_at)}` : ""}
+                        </p>
                         <p className="text-zinc-600 text-xs mt-0.5">
                           {s.laps.length > 0
                             ? `${s.laps.length} ${s.laps.length === 1 ? "flight" : "flights"}`
                             : "no flights logged"}
                         </p>
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-white font-black text-xl tabular-nums">{s.pack_count}</p>
-                        <p className="text-zinc-600 text-[10px] uppercase tracking-widest">packs</p>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <div className="text-right">
+                          <p className="text-white font-black text-xl tabular-nums">{s.pack_count}</p>
+                          <p className="text-zinc-600 text-[10px] uppercase tracking-widest">packs</p>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteSession(s.id)}
+                          disabled={deletingId === s.id}
+                          className="w-7 h-7 flex items-center justify-center rounded-full border border-zinc-700 text-zinc-600 hover:border-red-500 hover:text-red-500 active:scale-90 transition disabled:opacity-40"
+                          aria-label="Delete session"
+                        >
+                          {deletingId === s.id ? "…" : "✕"}
+                        </button>
                       </div>
                     </div>
                   ))}

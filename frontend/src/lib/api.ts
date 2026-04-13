@@ -43,10 +43,10 @@ export interface PilotInfo {
   avatar_url: string | null;
 }
 
-export async function saveTraining(packCount: number, laps: number[]): Promise<void> {
+export async function saveTraining(packCount: number, laps: number[], startedAt?: string): Promise<void> {
   await api.authPost("/sessions/", {
     pack_count: packCount,
     laps,
-    started_at: new Date().toISOString(),
+    started_at: startedAt ?? new Date().toISOString(),
   });
 }

@@ -19,6 +19,7 @@ class TrainingResponse(BaseModel):
     id: int
     pack_count: int = 0
     started_at: datetime
+    ended_at: datetime | None = None
     laps: list[LapOut] = []
 
     model_config = {"from_attributes": True}

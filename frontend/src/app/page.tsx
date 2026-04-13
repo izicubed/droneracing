@@ -9,7 +9,7 @@ import { getToken } from "@/lib/auth";
 
 type Phase = "IDLE" | "READY" | "COUNTDOWN" | "BEEP" | "DELAY" | "GO" | "RACING" | "STOPPED";
 
-type FlightEntry = { id: number; time: number };
+type FlightEntry = { id: number; time: number; startedAt: number; finishedAt: number };
 
 let actx: AudioContext | null = null;
 const audioBuffers: Record<string, AudioBuffer> = {};
@@ -59,6 +59,14 @@ function formatTime(ms: number) {
   const s = Math.floor((ms % 60000) / 1000);
   const cs = Math.floor((ms % 1000) / 10);
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}.${String(cs).padStart(2, "0")}`;
+}
+
+function formatWallTime(ts: number) {
+  const d = new Date(ts);
+  const h = String(d.getHours()).padStart(2, "0");
+  const m = String(d.getMinutes()).padStart(2, "0");
+  const s = String(d.getSeconds()).padStart(2, "0");
+  return `${h}:${m}:${s}`;
 }
 
 function NumInput({ label, unit, value, onChange, min, max, step }: {
@@ -209,10 +217,12 @@ export default function Home() {
   }
 
   function stopRace() {
-    const finalTime = Date.now() - raceStartRef.current;
+    const finishedAt = Date.now();
+    const startedAt = raceStartRef.current;
+    const finalTime = finishedAt - startedAt;
     setElapsed(finalTime);
     setPhase("STOPPED");
-    setFlightLog(prev => [...prev, { id: ++logIdRef.current, time: finalTime }]);
+    setFlightLog(prev => [...prev, { id: ++logIdRef.current, time: finalTime, startedAt, finishedAt }]);
   }
 
   async function runSequence(cSec: number, bCount: number, dMin: number, dMax: number) {
@@ -285,7 +295,10 @@ export default function Home() {
     if (!pilot || saveStatus === "saving") return;
     setSaveStatus("saving");
     try {
-      await saveTraining(packs, flightLog.map(e => e.time));
+      const sessionStart = flightLog.length > 0
+        ? new Date(flightLog[0].startedAt).toISOString()
+        : new Date().toISOString();
+      await saveTraining(packs, flightLog.map(e => e.time), sessionStart);
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 2500);
     } catch {
@@ -455,14 +468,19 @@ export default function Home() {
               <>
                 <div className="max-h-48 overflow-y-auto divide-y divide-zinc-800/50">
                   {flightLog.map((entry, idx) => (
-                    <div key={entry.id} className="flex items-center justify-between px-3 py-2">
-                      <span className="text-zinc-600 text-xs w-8">#{idx + 1}</span>
-                      <span className="text-zinc-200 text-sm font-mono tabular-nums flex-1 text-center">
-                        {formatTime(entry.time)}
-                      </span>
+                    <div key={entry.id} className="flex items-center justify-between px-3 py-2 gap-2">
+                      <span className="text-zinc-600 text-xs w-6 shrink-0">#{idx + 1}</span>
+                      <div className="flex flex-col items-center flex-1 min-w-0">
+                        <span className="text-zinc-200 text-sm font-mono tabular-nums">
+                          {formatTime(entry.time)}
+                        </span>
+                        <span className="text-zinc-600 text-[10px] font-mono tabular-nums">
+                          {formatWallTime(entry.startedAt)} → {formatWallTime(entry.finishedAt)}
+                        </span>
+                      </div>
                       <button
                         onClick={() => setFlightLog(prev => prev.filter(e => e.id !== entry.id))}
-                        className="text-zinc-700 hover:text-red-500 transition text-sm w-8 text-right leading-none"
+                        className="text-zinc-700 hover:text-red-500 transition text-sm w-6 shrink-0 text-right leading-none"
                         aria-label="Delete entry"
                       >✕</button>
                     </div>
