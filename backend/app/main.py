@@ -35,3 +35,15 @@ async def ws_timer(websocket: WebSocket):
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.get("/debug-db")
+async def debug_db():
+    from app.database import engine
+    from sqlalchemy import text
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        return {"db": "ok"}
+    except Exception as e:
+        return {"db": "error", "detail": str(e), "type": type(e).__name__}
