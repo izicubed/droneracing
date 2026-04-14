@@ -32,8 +32,10 @@ async function loadBuffers() {
   }
 }
 
-function playBuffer(src: string) {
+async function playBuffer(src: string) {
   const ctx = getCtx();
+  // iOS Safari: AudioContext уходит в suspended после паузы — resume() перед каждым воспроизведением
+  if (ctx.state === "suspended") await ctx.resume();
   const buf = audioBuffers[src];
   if (!buf) return;
   const n = ctx.createBufferSource();
@@ -42,9 +44,11 @@ function playBuffer(src: string) {
   n.start(0);
 }
 
-function playClick() {
+async function playClick() {
   try {
     const ctx = getCtx();
+    // iOS Safari: resume перед воспроизведением
+    if (ctx.state === "suspended") await ctx.resume();
     const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.015), ctx.sampleRate);
     const d = buf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length) * 0.12;
@@ -307,6 +311,9 @@ export default function Home() {
   }
 
   async function handleRingTap() {
+    // iOS: resume AudioContext строго в user gesture, до любых await
+    const ctx = getCtx();
+    if (ctx.state === "suspended") ctx.resume();
     playClick();
     await loadBuffers();
     if (phase === "IDLE" || phase === "STOPPED") {
