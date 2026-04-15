@@ -5,66 +5,14 @@ import clsx from "clsx";
 import AuthModal from "@/components/AuthModal";
 import ProfileModal from "@/components/ProfileModal";
 import AdminModal from "@/components/AdminModal";
+import Timer from "@/components/Timer";
+import NumInput from "@/components/NumInput";
+import { useTimer } from "@/hooks/useTimer";
+import { useAudio } from "@/hooks/useAudio";
 import { api, saveTraining, PilotInfo, getMe } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 
-type Phase = "IDLE" | "READY" | "COUNTDOWN" | "BEEP" | "DELAY" | "GO" | "RACING" | "STOPPED";
-
 type FlightEntry = { id: number; time: number; startedAt: number; finishedAt: number };
-
-let actx: AudioContext | null = null;
-const audioBuffers: Record<string, AudioBuffer> = {};
-
-function getCtx() {
-  if (!actx) actx = new AudioContext();
-  return actx;
-}
-
-async function loadBuffers() {
-  const ctx = getCtx();
-  if (ctx.state === "suspended") await ctx.resume();
-  for (const src of ["/audio/stage.mp3", "/audio/buzzer.mp3"]) {
-    if (audioBuffers[src]) continue;
-    try {
-      const ab = await (await fetch(src)).arrayBuffer();
-      audioBuffers[src] = await ctx.decodeAudioData(ab);
-    } catch {}
-  }
-}
-
-async function playBuffer(src: string) {
-  const ctx = getCtx();
-  // iOS Safari: AudioContext уходит в suspended после паузы — resume() перед каждым воспроизведением
-  if (ctx.state === "suspended") await ctx.resume();
-  const buf = audioBuffers[src];
-  if (!buf) return;
-  const n = ctx.createBufferSource();
-  n.buffer = buf;
-  n.connect(ctx.destination);
-  n.start(0);
-}
-
-async function playClick() {
-  try {
-    const ctx = getCtx();
-    // iOS Safari: resume перед воспроизведением
-    if (ctx.state === "suspended") await ctx.resume();
-    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.015), ctx.sampleRate);
-    const d = buf.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length) * 0.12;
-    const s = ctx.createBufferSource();
-    s.buffer = buf;
-    s.connect(ctx.destination);
-    s.start(0);
-  } catch {}
-}
-
-function formatTime(ms: number) {
-  const m = Math.floor(ms / 60000);
-  const s = Math.floor((ms % 60000) / 1000);
-  const cs = Math.floor((ms % 1000) / 10);
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}.${String(cs).padStart(2, "0")}`;
-}
 
 function formatWallTime(ts: number) {
   const d = new Date(ts);
@@ -74,53 +22,11 @@ function formatWallTime(ts: number) {
   return `${h}:${m}:${s}`;
 }
 
-function NumInput({ label, unit, value, onChange, min, max, step }: {
-  label: string; unit: string; value: number;
-  onChange: (v: number) => void; min: number; max: number; step: number;
-}) {
-  return (
-    <div className="flex flex-col items-center gap-0.5">
-      <span className="text-[10px] text-zinc-500 uppercase tracking-widest">{label}</span>
-      <div className="flex items-center gap-2">
-        <button onClick={() => onChange(Math.max(min, +(value - step).toFixed(1)))}
-          className="w-7 h-7 rounded-full border border-zinc-700 text-zinc-400 hover:border-orange-500 hover:text-orange-500 active:scale-90 transition text-base leading-none">−</button>
-        <span className="text-xl font-bold text-white w-12 text-center tabular-nums">{value}</span>
-        <button onClick={() => onChange(Math.min(max, +(value + step).toFixed(1)))}
-          className="w-7 h-7 rounded-full border border-zinc-700 text-zinc-400 hover:border-orange-500 hover:text-orange-500 active:scale-90 transition text-base leading-none">+</button>
-      </div>
-      <span className="text-[10px] text-zinc-600">{unit}</span>
-    </div>
-  );
-}
-
-const R = 104;
-const CIRC = 2 * Math.PI * R;
-
-function Ring({ progress, color, children, onClick }: {
-  progress: number; color: string; children: React.ReactNode; onClick: () => void;
-}) {
-  const offset = CIRC * (1 - Math.max(0, Math.min(1, progress)));
-  return (
-    <button
-      onClick={onClick}
-      className="relative w-56 h-56 flex items-center justify-center active:scale-95 transition-transform duration-150"
-    >
-      <svg className="-rotate-90 absolute inset-0" width="224" height="224" viewBox="0 0 224 224">
-        <circle cx="112" cy="112" r={R} fill="none" stroke="#27272a" strokeWidth="6" />
-        <circle
-          cx="112" cy="112" r={R} fill="none"
-          stroke={color} strokeWidth="6"
-          strokeDasharray={CIRC}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-          style={{ transition: "stroke 0.3s" }}
-        />
-      </svg>
-      <div className="relative z-10 flex items-center justify-center">
-        {children}
-      </div>
-    </button>
-  );
+function formatTime(ms: number) {
+  const m = Math.floor(ms / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  const cs = Math.floor((ms % 1000) / 10);
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}.${String(cs).padStart(2, "0")}`;
 }
 
 function UserButton({ pilot, onClick }: { pilot: PilotInfo | null; onClick: () => void }) {
@@ -157,13 +63,7 @@ function UserButton({ pilot, onClick }: { pilot: PilotInfo | null; onClick: () =
 }
 
 export default function Home() {
-  const [phase, setPhase] = useState<Phase>("IDLE");
-  const [countdown, setCountdown] = useState(0);
-  const [beep, setBeep] = useState({ n: 0, total: 3 });
-  const [elapsed, setElapsed] = useState(0);
-  const [cdProgress, setCdProgress] = useState(0);
-  const [delayProgress, setDelayProgress] = useState(0);
-  const [delayTotal, setDelayTotal] = useState(0);
+  const { getCtx, loadBuffers, playBuffer, playClick } = useAudio();
 
   const [countdownSec, setCountdownSec] = useState(() => {
     try { const v = localStorage.getItem("fpv_countdownSec"); return v ? Number(v) : 5; } catch { return 5; }
@@ -186,6 +86,7 @@ export default function Home() {
   });
   const [logOpen, setLogOpen] = useState(false);
   const logIdRef = useRef(0);
+
   // Sync logIdRef with restored flightLog so new entries get unique ids
   useEffect(() => {
     if (flightLog.length > 0) {
@@ -210,13 +111,6 @@ export default function Home() {
   const [showAdmin, setShowAdmin] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
-  const abortRef = useRef(false);
-  const raceStartRef = useRef(0);
-  const cdStartRef = useRef(0);
-  const cdTotalRef = useRef(0);
-  const delayStartRef = useRef(0);
-  const delayTotalRef = useRef(0);
-
   // Load pilot profile on mount if token exists
   useEffect(() => {
     if (!getToken()) return;
@@ -224,91 +118,12 @@ export default function Home() {
     getMe().then(u => setIsSuperadmin(u.role === "superadmin")).catch(() => {});
   }, []);
 
-  // Single animation loop driven by phase — reliable on iOS Safari
-  useEffect(() => {
-    if (phase !== "COUNTDOWN" && phase !== "DELAY" && phase !== "RACING") return;
-    let raf: number;
-    const tick = () => {
-      if (phase === "COUNTDOWN") {
-        const p = 1 - (Date.now() - cdStartRef.current) / cdTotalRef.current;
-        setCdProgress(Math.max(0, p));
-      } else if (phase === "DELAY") {
-        const p = (Date.now() - delayStartRef.current) / delayTotalRef.current;
-        setDelayProgress(Math.min(1, p));
-      } else if (phase === "RACING") {
-        setElapsed(Date.now() - raceStartRef.current);
-      }
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [phase]);
-
-  // Abort on unmount
-  useEffect(() => () => { abortRef.current = true; }, []);
-
-  function stopAll() {
-    abortRef.current = true;
-  }
-
-  function stopRace() {
-    const finishedAt = Date.now();
-    const startedAt = raceStartRef.current;
-    const finalTime = finishedAt - startedAt;
-    setElapsed(finalTime);
-    setPhase("STOPPED");
-    setFlightLog(prev => [...prev, { id: ++logIdRef.current, time: finalTime, startedAt, finishedAt }]);
-  }
-
-  async function runSequence(cSec: number, bCount: number, dMin: number, dMax: number) {
-    abortRef.current = false;
-
-    const sleep = (ms: number) => new Promise<void>((res) => {
-      const id = setTimeout(res, ms);
-      const iv = setInterval(() => {
-        if (abortRef.current) { clearTimeout(id); clearInterval(iv); res(); }
-      }, 30);
-    });
-
-    setPhase("READY");
-    await sleep(500);
-    if (abortRef.current) return;
-
-    cdStartRef.current = Date.now();
-    cdTotalRef.current = cSec * 1000;
-    for (let i = cSec; i >= 1; i--) {
-      if (abortRef.current) return;
-      setPhase("COUNTDOWN");
-      setCountdown(i);
-      await sleep(1000);
-    }
-
-    for (let i = 1; i <= bCount; i++) {
-      if (abortRef.current) return;
-      setPhase("BEEP");
-      setBeep({ n: i, total: bCount });
-      playBuffer("/audio/stage.mp3");
-      await sleep(1000);
-    }
-
-    if (abortRef.current) return;
-    const delayMs = dMin * 1000 + Math.random() * (dMax - dMin) * 1000;
-    delayStartRef.current = Date.now();
-    delayTotalRef.current = delayMs;
-    setDelayTotal(delayMs);
-    setDelayProgress(0);
-    setPhase("DELAY");
-    await sleep(delayMs);
-
-    if (abortRef.current) return;
-    playBuffer("/audio/buzzer.mp3");
-    setPhase("GO");
-    await sleep(800);
-
-    if (abortRef.current) return;
-    raceStartRef.current = Date.now();
-    setPhase("RACING");
-  }
+  const timer = useTimer({
+    playBuffer,
+    onRaceStopped: ({ time, startedAt, finishedAt }) => {
+      setFlightLog(prev => [...prev, { id: ++logIdRef.current, time, startedAt, finishedAt }]);
+    },
+  });
 
   async function handleRingTap() {
     // iOS: resume AudioContext строго в user gesture, до любых await
@@ -316,16 +131,16 @@ export default function Home() {
     if (ctx.state === "suspended") ctx.resume();
     playClick();
     await loadBuffers();
-    if (phase === "IDLE" || phase === "STOPPED") {
-      setElapsed(0);
-      setCdProgress(0);
+    if (timer.phase === "IDLE" || timer.phase === "STOPPED") {
+      timer.setElapsed(0);
+      timer.setCdProgress(0);
       setPacks(p => p + 1);
-      runSequence(countdownSec, beepCount, delayMin, delayMax);
-    } else if (phase === "RACING") {
-      stopRace();
+      timer.runSequence(countdownSec, beepCount, delayMin, delayMax);
+    } else if (timer.phase === "RACING") {
+      timer.stopRace();
     } else {
-      stopAll();
-      setPhase("IDLE");
+      timer.stopAll();
+      timer.setPhase("IDLE");
     }
   }
 
@@ -356,62 +171,7 @@ export default function Home() {
   }
 
   const canSave = pilot && (packs > 0 || flightLog.length > 0);
-
-  const progress =
-    phase === "READY"     ? 1 :
-    phase === "COUNTDOWN" ? cdProgress :
-    phase === "BEEP"      ? beep.n / beep.total :
-    phase === "DELAY"     ? delayProgress :
-    phase === "GO"        ? 1 :
-    phase === "RACING"    ? (elapsed % 60000) / 60000 :
-    phase === "STOPPED"   ? (elapsed % 60000) / 60000 :
-    0;
-
-  const ringColor =
-    phase === "RACING" || phase === "GO"        ? "#4ade80" :
-    phase === "STOPPED"                         ? "#71717a" :
-    phase === "BEEP"                            ? "#facc15" :
-    phase === "DELAY"                           ? "#fb923c" :
-    phase === "READY" || phase === "COUNTDOWN"  ? "#f97316" :
-    "#3f3f46";
-
-  const textColor =
-    phase === "RACING" || phase === "GO"        ? "text-green-400" :
-    phase === "STOPPED"                         ? "text-zinc-300" :
-    phase === "BEEP"                            ? "text-yellow-400" :
-    phase === "DELAY"                           ? "text-orange-300" :
-    phase === "READY" || phase === "COUNTDOWN"  ? "text-orange-400" :
-    "text-zinc-500";
-
-  const displayValue =
-    phase === "READY"     ? "•" :
-    phase === "COUNTDOWN" ? countdown :
-    phase === "BEEP"      ? beep.total - beep.n + 1 :
-    phase === "DELAY"     ? `${(delayTotal / 1000).toFixed(1)}` :
-    phase === "GO"        ? "GO!" :
-    phase === "RACING"    ? formatTime(elapsed) :
-    phase === "STOPPED"   ? formatTime(elapsed) :
-    "START";
-
-  const textSize =
-    phase === "RACING" || phase === "STOPPED" ? "text-3xl" :
-    phase === "COUNTDOWN" || phase === "BEEP"  ? "text-6xl" :
-    phase === "GO"                             ? "text-5xl" :
-    phase === "DELAY"                          ? "text-4xl" :
-    phase === "READY"                          ? "text-5xl" :
-    "text-2xl";
-
-  const phaseLabel =
-    phase === "IDLE"      ? "tap to start" :
-    phase === "READY"     ? "get ready" :
-    phase === "COUNTDOWN" ? "countdown" :
-    phase === "BEEP"      ? "beep" :
-    phase === "DELAY"     ? "standby..." :
-    phase === "GO"        ? "race start!" :
-    phase === "RACING"    ? "tap to stop" :
-    "tap to restart";
-
-  const isActive = phase !== "IDLE" && phase !== "STOPPED";
+  const isActive = timer.phase !== "IDLE" && timer.phase !== "STOPPED";
 
   return (
     <main className="min-h-screen bg-zinc-950 flex flex-col items-center py-8 px-6 gap-3 select-none">
@@ -435,15 +195,16 @@ export default function Home() {
         </div>
       </div>
 
-      <Ring progress={progress} color={ringColor} onClick={handleRingTap}>
-        <span className={clsx("font-black tabular-nums", textColor, textSize)}>
-          {displayValue}
-        </span>
-      </Ring>
-
-      <p className={clsx("text-xs uppercase tracking-widest -mt-2", textColor)}>
-        {phaseLabel}
-      </p>
+      <Timer
+        phase={timer.phase}
+        countdown={timer.countdown}
+        beep={timer.beep}
+        elapsed={timer.elapsed}
+        cdProgress={timer.cdProgress}
+        delayProgress={timer.delayProgress}
+        delayTotal={timer.delayTotal}
+        onTap={handleRingTap}
+      />
 
       {/* Settings */}
       <div className={clsx(
