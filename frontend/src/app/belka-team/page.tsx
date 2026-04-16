@@ -129,14 +129,14 @@ const expensesData = [
     id: 3,
     category: "Доставка",
     description: "Отправка засечки в Алма-Аты",
-    paidBy: "Общие",
+    paidBy: "Женя (Alias)",
     amount: 60,
     currency: "BYN",
   },
 ];
 
 const balance = [
-  { name: "Женя (Alias)", paid: 250, color: "text-blue-400" },
+  { name: "Женя (Alias)", paid: 310, color: "text-blue-400" },
   { name: "Коля (Cubed)", paid: 85.7, color: "text-orange-400" },
   { name: "Андрей (Tisha)", paid: 0, color: "text-zinc-400" },
 ];
@@ -308,9 +308,6 @@ function ExpensesTab() {
             </div>
           ))}
         </div>
-        <p className="text-zinc-700 text-xs text-center mt-4">
-          Распределение общих расходов (60 BYN доставка) требует уточнения
-        </p>
       </div>
     </div>
   );
