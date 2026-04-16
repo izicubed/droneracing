@@ -31,11 +31,11 @@ type ScheduleDay = {
 const T = {
   org:   { ru: { label: "Организация",  color: "bg-zinc-700 text-zinc-300"        }, en: { label: "Organisation",  color: "bg-zinc-700 text-zinc-300"        } },
   tech:  { ru: { label: "Техконтроль",  color: "bg-blue-500/20 text-blue-400"     }, en: { label: "Tech Check",    color: "bg-blue-500/20 text-blue-400"     } },
-  openv: { ru: { label: "Открытие",     color: "bg-orange-500/20 text-orange-400" }, en: { label: "Opening",       color: "bg-orange-500/20 text-orange-400" } },
+  openv: { ru: { label: "Открытие",     color: "bg-[oklch(69.6%_0.17_162.48)]/20 text-[oklch(69.6%_0.17_162.48)]" }, en: { label: "Opening",       color: "bg-[oklch(69.6%_0.17_162.48)]/20 text-[oklch(69.6%_0.17_162.48)]" } },
   brief: { ru: { label: "Брифинг",      color: "bg-zinc-700 text-zinc-300"        }, en: { label: "Briefing",      color: "bg-zinc-700 text-zinc-300"        } },
   prac:  { ru: { label: "Тренировка",   color: "bg-green-500/20 text-green-400"   }, en: { label: "Practice",      color: "bg-green-500/20 text-green-400"   } },
   qual:  { ru: { label: "Квалификация", color: "bg-yellow-500/20 text-yellow-400" }, en: { label: "Qualification", color: "bg-yellow-500/20 text-yellow-400" } },
-  elim:  { ru: { label: "Elimination",  color: "bg-orange-500/20 text-orange-400" }, en: { label: "Elimination",   color: "bg-orange-500/20 text-orange-400" } },
+  elim:  { ru: { label: "Elimination",  color: "bg-[oklch(69.6%_0.17_162.48)]/20 text-[oklch(69.6%_0.17_162.48)]" }, en: { label: "Elimination",   color: "bg-[oklch(69.6%_0.17_162.48)]/20 text-[oklch(69.6%_0.17_162.48)]" } },
   final: { ru: { label: "Финал",        color: "bg-red-500/20 text-red-400"       }, en: { label: "Final",         color: "bg-red-500/20 text-red-400"       } },
   award: { ru: { label: "Церемония",    color: "bg-yellow-500/20 text-yellow-400" }, en: { label: "Ceremony",      color: "bg-yellow-500/20 text-yellow-400" } },
   close: { ru: { label: "Закрытие",     color: "bg-zinc-700 text-zinc-300"        }, en: { label: "Closing",       color: "bg-zinc-700 text-zinc-300"        } },
@@ -251,7 +251,7 @@ const expensesData = [
 
 const balance = [
   { name: "Женя (Alias)", paid: 310, color: "text-blue-400" },
-  { name: "Коля (Cubed)", paid: 85.7, color: "text-orange-400" },
+  { name: "Коля (Cubed)", paid: 85.7, color: "text-[oklch(69.6%_0.17_162.48)]" },
   { name: "Андрей (Tisha)", paid: 0, color: "text-zinc-400" },
 ];
 
@@ -283,11 +283,11 @@ function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center px-6">
+    <main className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center px-6 font-mono">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <p className="text-[10px] text-zinc-600 uppercase tracking-[0.25em] mb-1">Закрытый раздел</p>
-          <h1 className="text-2xl font-black text-white tracking-tight">belka<span className="text-orange-500">-team</span></h1>
+          <h1 className="text-2xl font-black text-white tracking-tight">belka<span className="text-[oklch(69.6%_0.17_162.48)]">-team</span></h1>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
@@ -298,7 +298,7 @@ function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
               autoComplete="username"
               value={login}
               onChange={e => setLogin(e.target.value)}
-              className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2.5 text-white text-sm outline-none focus:border-orange-500 transition"
+              className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2.5 text-white text-sm outline-none focus:border-[oklch(69.6%_0.17_162.48)] transition"
               placeholder="логин"
             />
           </div>
@@ -309,7 +309,7 @@ function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
               autoComplete="current-password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2.5 text-white text-sm outline-none focus:border-orange-500 transition"
+              className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2.5 text-white text-sm outline-none focus:border-[oklch(69.6%_0.17_162.48)] transition"
               placeholder="••••••••"
             />
           </div>
@@ -321,7 +321,7 @@ function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
           <button
             type="submit"
             disabled={loading}
-            className="mt-2 w-full py-2.5 rounded-xl bg-orange-500/15 text-orange-400 border border-orange-500/30 hover:bg-orange-500/25 text-sm font-bold transition active:scale-[0.98] disabled:opacity-50"
+            className="mt-2 w-full py-2.5 rounded-xl bg-[oklch(69.6%_0.17_162.48)]/15 text-[oklch(69.6%_0.17_162.48)] border border-[oklch(69.6%_0.17_162.48)]/30 hover:bg-[oklch(69.6%_0.17_162.48)]/25 text-sm font-bold transition active:scale-[0.98] disabled:opacity-50"
           >
             {loading ? "Проверка..." : "Войти"}
           </button>
@@ -374,7 +374,7 @@ function ScheduleTab() {
         <div className="flex shrink-0 bg-zinc-900 border border-zinc-800 rounded-lg p-0.5">
           {(["ru", "en"] as Lang[]).map(l => (
             <button key={l} onClick={() => setLang(l)}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-widest transition ${lang === l ? "bg-orange-500 text-white" : "text-zinc-500 hover:text-zinc-300"}`}>
+              className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-widest transition ${lang === l ? "bg-[oklch(69.6%_0.17_162.48)] text-white" : "text-zinc-500 hover:text-zinc-300"}`}>
               {l}
             </button>
           ))}
@@ -387,11 +387,11 @@ function ScheduleTab() {
           <button key={d} onClick={() => setDay(d)}
             className={`flex-1 py-2.5 px-3 rounded-xl border text-left transition ${
               day === d
-                ? "bg-orange-500/15 border-orange-500/40 text-orange-400"
+                ? "bg-[oklch(69.6%_0.17_162.48)]/15 border-[oklch(69.6%_0.17_162.48)]/40 text-[oklch(69.6%_0.17_162.48)]"
                 : "bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700"
             }`}>
             <div className="text-xs font-black">{scheduleDays[d][lang].label}</div>
-            <div className={`text-[10px] font-normal mt-0.5 ${day === d ? "text-orange-500/70" : "text-zinc-600"}`}>
+            <div className={`text-[10px] font-normal mt-0.5 ${day === d ? "text-[oklch(69.6%_0.17_162.48)]/70" : "text-zinc-600"}`}>
               {scheduleDays[d][lang].subtitle}
             </div>
           </button>
@@ -416,7 +416,7 @@ function ScheduleTab() {
           <div key={i}>
             {/* Time label */}
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-orange-500 text-xs font-mono font-bold tabular-nums whitespace-nowrap">
+              <span className="text-[oklch(69.6%_0.17_162.48)] text-xs font-mono font-bold tabular-nums whitespace-nowrap">
                 {row.time}
               </span>
               {row.kind === "parallel" && (
@@ -452,7 +452,7 @@ function ExpensesTab() {
         <h2 className="text-xl font-black text-white">Расходы — Монголия</h2>
         <div className="text-right">
           <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Итого</p>
-          <p className="text-orange-400 font-black text-lg tabular-nums">
+          <p className="text-[oklch(69.6%_0.17_162.48)] font-black text-lg tabular-nums">
             {totalBYN.toFixed(1)} BYN
           </p>
         </div>
@@ -505,13 +505,13 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [tab, setTab] = useState<Tab>("schedule");
 
   return (
-    <main className="min-h-screen bg-zinc-950 flex flex-col">
+    <main className="min-h-screen bg-zinc-950 flex flex-col font-mono">
       {/* Header */}
       <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
         <div>
           <p className="text-[10px] text-zinc-600 uppercase tracking-[0.25em]">Закрытый раздел</p>
           <h1 className="text-lg font-black text-white leading-tight">
-            belka<span className="text-orange-500">-team</span>
+            belka<span className="text-[oklch(69.6%_0.17_162.48)]">-team</span>
           </h1>
         </div>
         <button
@@ -531,7 +531,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               onClick={() => setTab(t)}
               className={`py-3 text-xs font-bold uppercase tracking-widest border-b-2 transition ${
                 tab === t
-                  ? "border-orange-500 text-orange-400"
+                  ? "border-[oklch(69.6%_0.17_162.48)] text-[oklch(69.6%_0.17_162.48)]"
                   : "border-transparent text-zinc-600 hover:text-zinc-400"
               }`}
             >
