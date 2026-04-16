@@ -8,103 +8,98 @@ const SESSION_KEY = "belka_team_auth";
 
 type Tab = "schedule" | "expenses";
 
-// ─── Schedule data (DRONECON 2026) ───────────────────────────────────────────
-const scheduleData = {
-  title: "DRONECON 2026 Participant Schedule",
-  subtitle: "May 30–31, 2026 | Ulaanbaatar, Mongolia",
-  intro:
-    "DRONECON 2026 welcomes all registered pilots, teams, and participants to the International Championship. Please review the participant schedule and key procedures below to ensure smooth registration, technical verification, and competition readiness. The official program includes registration, technical inspection, briefing sessions, preliminary rounds, semi-finals, finals, and the award ceremony across two competition days.",
-  days: [
-    {
-      label: "Day 1 — May 30, 2026",
-      sectionTitle:
-        "Registration, Technical Verification, Briefing, and Preliminary Competition",
-      items: [
-        {
-          time: "08:00–09:00",
-          title: "Participant Registration",
-          desc: "All domestic and international participants, teams, and delegates must complete registration during this time. Accreditation badges and participant identification will be issued, and competition materials, including technical requirements, flight sequence, and safety instructions, will be distributed.",
-        },
-        {
-          time: "08:30–09:00",
-          title: "Technical Inspection and Verification",
-          desc: "All drones, controllers, batteries, and communication equipment will undergo technical inspection. Compliance with category requirements, technical standards, and safety conditions will be verified before confirming eligibility to compete.",
-        },
-        {
-          time: "09:00–09:20",
-          title: "General Participant Briefing",
-          desc: "Participants will receive an introduction to the competition structure, rules, flight order, safety procedures, emergency protocols, and the responsibilities of pilots, coaches, judges, and technical staff. Attendance is strongly recommended for all competitors.",
-        },
-        {
-          time: "10:00–12:30",
-          title: "Preliminary Competition Round",
-          desc: "The first stage of the competition will begin, including flight skill challenges, precision tests, and stable control evaluation. Performance will be scored based on timing and execution under official judge supervision.",
-        },
-        {
-          time: "12:30–13:30",
-          title: "Lunch Break",
-          desc: "Participants may use this time to rest, network, and visit designated activity areas.",
-        },
-        {
-          time: "15:00–16:00",
-          title: "Technical Practice Flights",
-          desc: "Participants will have the opportunity to conduct familiarization flights within the competition environment, check signals and technical setup, and review the course, obstacles, and landing zones.",
-        },
-        {
-          time: "17:30–18:30",
-          title: "Opening Ceremony",
-          desc: "The official opening ceremony will be held for all participants, teams, and invited guests. Representatives of the organizing committee and sponsors will address the audience, and the competition draw will be announced.",
-        },
-        {
-          time: "19:00–21:00",
-          title: "Welcome Dinner",
-          desc: "A welcome dinner is organized for all registered participants and their teams. This is an opportunity to meet fellow competitors and exchange experience in an informal setting.",
-        },
-      ],
-    },
-    {
-      label: "Day 2 — May 31, 2026",
-      sectionTitle: "Semi-Finals, Finals, and Award Ceremony",
-      items: [
-        {
-          time: "08:00–08:30",
-          title: "Morning Briefing",
-          desc: "Final briefing before the elimination rounds. Judges will confirm flight order, rules for semi-finals and finals, and scoring procedures.",
-        },
-        {
-          time: "09:00–12:00",
-          title: "Semi-Final Rounds",
-          desc: "The top-ranked pilots from the preliminary round will compete in head-to-head elimination matches. Flight sequences and bracket assignments will be posted at the registration desk.",
-        },
-        {
-          time: "12:00–13:00",
-          title: "Lunch Break",
-          desc: "Participants and spectators may use this time to rest and visit exhibition areas.",
-        },
-        {
-          time: "13:00–14:00",
-          title: "Technical Preparation for Finals",
-          desc: "Finalist pilots will have access to the track for final equipment checks and brief practice runs before the championship round.",
-        },
-        {
-          time: "14:30–17:00",
-          title: "Final Competition Round",
-          desc: "The championship final will take place with all qualified finalists. Spectators are welcome on the designated viewing platforms. Live commentary and real-time scoring will be available.",
-        },
-        {
-          time: "17:30–18:30",
-          title: "Award Ceremony",
-          desc: "Winners of all categories will be announced and presented with trophies, medals, and prizes. Photographs and interviews with the organizing committee will follow the ceremony.",
-        },
-        {
-          time: "19:00",
-          title: "Closing & Farewell",
-          desc: "Official closing of DRONECON 2026. Participants are invited to stay for informal networking before departure.",
-        },
-      ],
-    },
-  ],
+// ─── Schedule data ────────────────────────────────────────────────────────────
+type Tag = { label: string; color: string };
+
+type ScheduleItem = {
+  time: string;
+  emoji: string;
+  title: string;
+  desc: string;
+  tags: Tag[];
 };
+
+const scheduleItems: ScheduleItem[] = [
+  {
+    time: "10:00 – 11:00",
+    emoji: "📋",
+    title: "Прибытие и регистрация",
+    desc: "Прибытие участников соревнований. Регистрация пилотов и команд, выдача аккредитации. Работа мандатной комиссии: проверка дронов, контроллеров, аккумуляторов и оборудования на соответствие техническим требованиям категорий.",
+    tags: [
+      { label: "Организация", color: "bg-zinc-700 text-zinc-300" },
+      { label: "Техконтроль", color: "bg-blue-500/20 text-blue-400" },
+    ],
+  },
+  {
+    time: "11:00 – 11:15",
+    emoji: "📣",
+    title: "Общий брифинг и открытие",
+    desc: "Приветственное слово организаторов. Объяснение регламента соревнований, порядка вылетов, правил безопасности и процедуры судейства. Официальное открытие соревнований. Обязательно для всех пилотов и членов команд.",
+    tags: [
+      { label: "Открытие", color: "bg-orange-500/20 text-orange-400" },
+      { label: "Брифинг", color: "bg-zinc-700 text-zinc-300" },
+    ],
+  },
+  {
+    time: "11:15 – 12:00",
+    emoji: "🛸",
+    title: "Тренировочные вылеты",
+    desc: "Ознакомительные полёты для всех участников. Возможность облететь трассу, проверить сигнал, настройки видео и курсовые параметры квада. Судьи фиксируют готовность пилотов — результаты не засчитываются.",
+    tags: [
+      { label: "Тренировка", color: "bg-green-500/20 text-green-400" },
+      { label: "Соревнование", color: "bg-purple-500/20 text-purple-400" },
+    ],
+  },
+  {
+    time: "12:00 – 14:30",
+    emoji: "🎯",
+    title: "Квалификация",
+    desc: "Первый зачётный этап. Каждый пилот выполняет установленное количество раундов, результаты идут в общий зачёт. По итогам квалификации формируется сетка отборочного этапа. Лучшее время каждого раунда учитывается в финальном рейтинге.",
+    tags: [
+      { label: "Квалификация", color: "bg-yellow-500/20 text-yellow-400" },
+      { label: "Соревнование", color: "bg-purple-500/20 text-purple-400" },
+    ],
+  },
+  {
+    time: "14:30 – 15:00",
+    emoji: "🍽️",
+    title: "Перерыв — обед",
+    desc: "Технический перерыв. Пилоты могут зарядить аккумуляторы, провести обслуживание оборудования, пообедать и отдохнуть перед отборочным этапом.",
+    tags: [
+      { label: "Перерыв", color: "bg-zinc-700 text-zinc-300" },
+    ],
+  },
+  {
+    time: "15:00 – 17:00",
+    emoji: "⚡",
+    title: "Отборочный этап",
+    desc: "Гонки на выбывание по результатам квалификации. Пилоты соревнуются в группах, лучшие проходят в финал. Высокий темп, прямые столкновения, максимальная интенсивность. Состав финальных групп определяется по итогам этого этапа.",
+    tags: [
+      { label: "Отбор", color: "bg-orange-500/20 text-orange-400" },
+      { label: "Соревнование", color: "bg-purple-500/20 text-purple-400" },
+    ],
+  },
+  {
+    time: "17:00 – 17:45",
+    emoji: "🏁",
+    title: "Финальный этап",
+    desc: "Решающие гонки между лучшими пилотами соревнований. Финал определяет победителей и призёров во всех категориях. Прямая трансляция, комментаторы, максимальный накал — лучший момент дня для зрителей и участников.",
+    tags: [
+      { label: "Финал", color: "bg-red-500/20 text-red-400" },
+      { label: "Соревнование", color: "bg-purple-500/20 text-purple-400" },
+    ],
+  },
+  {
+    time: "17:45 – 18:00",
+    emoji: "🏆",
+    title: "Награждение и закрытие",
+    desc: "Торжественное награждение победителей и призёров соревнований — кубки, медали, призы. Слово организаторов и почётных гостей. Официальное закрытие соревнований DRONECON 2026.",
+    tags: [
+      { label: "Церемония", color: "bg-yellow-500/20 text-yellow-400" },
+      { label: "Закрытие", color: "bg-zinc-700 text-zinc-300" },
+    ],
+  },
+];
 
 // ─── Expenses data (Монголия.md, 16.04.2026) ─────────────────────────────────
 const expensesData = [
@@ -221,36 +216,45 @@ function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
 function ScheduleTab() {
   return (
     <div className="max-w-2xl mx-auto">
-      <div className="mb-6">
-        <h2 className="text-xl font-black text-white mb-1">{scheduleData.title}</h2>
-        <p className="text-orange-400 text-sm font-semibold mb-3">{scheduleData.subtitle}</p>
-        <p className="text-zinc-400 text-sm leading-relaxed">{scheduleData.intro}</p>
+      {/* Header */}
+      <div className="mb-7">
+        <p className="text-[10px] text-zinc-600 uppercase tracking-[0.2em] mb-1">DRONECON 2026</p>
+        <h2 className="text-xl font-black text-white mb-1">Программа соревнований</h2>
+        <p className="text-orange-400 text-sm font-semibold">Улан-Батор, Монголия · 30 мая 2026</p>
       </div>
 
-      {scheduleData.days.map((day, di) => (
-        <div key={di} className="mb-8">
-          <div className="border-b border-zinc-800 pb-2 mb-4">
-            <h3 className="text-lg font-black text-orange-400">{day.label}</h3>
-            <p className="text-zinc-400 text-xs mt-0.5">{day.sectionTitle}</p>
-          </div>
+      {/* Timeline */}
+      <div className="relative flex flex-col gap-0">
+        {/* vertical line */}
+        <div className="absolute left-[19px] top-5 bottom-5 w-px bg-zinc-800 z-0" />
 
-          <div className="flex flex-col gap-4">
-            {day.items.map((item, ii) => (
-              <div key={ii} className="flex gap-3">
-                <div className="shrink-0 pt-0.5">
-                  <span className="text-orange-500 text-xs font-mono font-bold tabular-nums whitespace-nowrap">
-                    {item.time}
-                  </span>
-                </div>
-                <div className="flex-1 border-l border-zinc-800 pl-3">
-                  <p className="text-white text-sm font-bold mb-0.5">{item.title}</p>
-                  <p className="text-zinc-500 text-xs leading-relaxed">{item.desc}</p>
+        {scheduleItems.map((item, i) => (
+          <div key={i} className="relative flex gap-4 pb-6 last:pb-0">
+            {/* Emoji bubble */}
+            <div className="shrink-0 z-10 w-10 h-10 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-lg">
+              {item.emoji}
+            </div>
+
+            {/* Card */}
+            <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 min-w-0">
+              <div className="flex items-start justify-between gap-2 mb-2 flex-wrap">
+                <span className="text-orange-500 text-xs font-mono font-bold tabular-nums whitespace-nowrap">
+                  {item.time}
+                </span>
+                <div className="flex flex-wrap gap-1">
+                  {item.tags.map(tag => (
+                    <span key={tag.label} className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${tag.color}`}>
+                      {tag.label}
+                    </span>
+                  ))}
                 </div>
               </div>
-            ))}
+              <p className="text-white text-sm font-bold mb-1">{item.title}</p>
+              <p className="text-zinc-500 text-xs leading-relaxed">{item.desc}</p>
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
