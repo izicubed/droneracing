@@ -106,21 +106,44 @@ const scheduleData = {
   ],
 };
 
-// ─── Expenses placeholder data ────────────────────────────────────────────────
+// ─── Expenses data (Монголия.md, 16.04.2026) ─────────────────────────────────
 const expensesData = [
-  { id: 1, date: "2026-04-01", category: "Транспорт", description: "Авиабилеты Москва–Улан-Батор (х4)", amount: 140000 },
-  { id: 2, date: "2026-04-02", category: "Проживание", description: "Отель 3 ночи (х4 чел.)", amount: 85000 },
-  { id: 3, date: "2026-04-10", category: "Взнос", description: "Регистрационный взнос команды", amount: 30000 },
-  { id: 4, date: "2026-04-12", category: "Оборудование", description: "Запасные пропеллеры и платы", amount: 18500 },
-  { id: 5, date: "2026-04-15", category: "Питание", description: "Суточные (5 дней х4 чел.)", amount: 40000 },
+  {
+    id: 1,
+    category: "Оборудование",
+    description: "Raspberry Pi 4",
+    paidBy: "Женя (Alias)",
+    amount: 250,
+    currency: "BYN",
+  },
+  {
+    id: 2,
+    category: "Оборудование",
+    description: "Комплект для сборки засечки",
+    paidBy: "Коля (Cubed)",
+    amount: 85.7,
+    currency: "BYN",
+    note: "~3000 RUB по курсу 35 RUB/BYN",
+  },
+  {
+    id: 3,
+    category: "Доставка",
+    description: "Отправка засечки в Алма-Аты",
+    paidBy: "Общие",
+    amount: 60,
+    currency: "BYN",
+  },
+];
+
+const balance = [
+  { name: "Женя (Alias)", paid: 250, color: "text-blue-400" },
+  { name: "Коля (Cubed)", paid: 85.7, color: "text-orange-400" },
+  { name: "Андрей (Tisha)", paid: 0, color: "text-zinc-400" },
 ];
 
 const categoryColors: Record<string, string> = {
-  Транспорт: "bg-blue-500/20 text-blue-400",
-  Проживание: "bg-purple-500/20 text-purple-400",
-  Взнос: "bg-orange-500/20 text-orange-400",
   Оборудование: "bg-yellow-500/20 text-yellow-400",
-  Питание: "bg-green-500/20 text-green-400",
+  Доставка: "bg-blue-500/20 text-blue-400",
 };
 
 // ─── Login screen ─────────────────────────────────────────────────────────────
@@ -234,45 +257,61 @@ function ScheduleTab() {
 
 // ─── Expenses tab ─────────────────────────────────────────────────────────────
 function ExpensesTab() {
-  const total = expensesData.reduce((s, e) => s + e.amount, 0);
+  const totalBYN = expensesData.reduce((s, e) => s + e.amount, 0);
 
   return (
     <div className="max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-black text-white">Расходы команды</h2>
+        <h2 className="text-xl font-black text-white">Расходы — Монголия</h2>
         <div className="text-right">
           <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Итого</p>
           <p className="text-orange-400 font-black text-lg tabular-nums">
-            {total.toLocaleString("ru-RU")} ₽
+            {totalBYN.toFixed(1)} BYN
           </p>
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
+      {/* Expense list */}
+      <div className="flex flex-col gap-2 mb-8">
         {expensesData.map(e => (
           <div
             key={e.id}
             className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 flex items-start gap-3"
           >
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${categoryColors[e.category] ?? "bg-zinc-700 text-zinc-400"}`}>
                   {e.category}
                 </span>
-                <span className="text-zinc-600 text-[10px]">{e.date}</span>
+                <span className="text-zinc-500 text-[10px]">оплатил: {e.paidBy}</span>
               </div>
               <p className="text-white text-sm">{e.description}</p>
+              {e.note && <p className="text-zinc-600 text-[10px] mt-0.5">{e.note}</p>}
             </div>
             <span className="text-white font-black tabular-nums text-sm whitespace-nowrap">
-              {e.amount.toLocaleString("ru-RU")} ₽
+              {e.amount.toFixed(1)} BYN
             </span>
           </div>
         ))}
       </div>
 
-      <p className="text-zinc-700 text-xs text-center mt-6">
-        * Данные для примера — редактирование доступно в следующей версии
-      </p>
+      {/* Balance */}
+      <div className="border-t border-zinc-800 pt-6">
+        <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-3">Баланс участников</p>
+        <div className="flex flex-col gap-2">
+          {balance.map(p => (
+            <div key={p.name} className="flex items-center justify-between bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3">
+              <span className="text-white text-sm font-bold">{p.name}</span>
+              <span className={`font-black tabular-nums text-sm ${p.paid > 0 ? p.color : "text-zinc-600"}`}>
+                {p.paid > 0 ? `${p.paid.toFixed(1)} BYN` : "—"}
+              </span>
+            </div>
+          ))}
+        </div>
+        <p className="text-zinc-700 text-xs text-center mt-4">
+          Распределение общих расходов (60 BYN доставка) требует уточнения
+        </p>
+      </div>
     </div>
   );
 }
