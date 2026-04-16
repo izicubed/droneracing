@@ -297,7 +297,7 @@ function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
 
 // ─── Schedule tab ─────────────────────────────────────────────────────────────
 function ScheduleTab() {
-  const [lang, setLang] = useState<Lang>("ru");
+  const [lang, setLang] = useState<Lang>("en");
 
   return (
     <div className="max-w-2xl mx-auto">
