@@ -494,8 +494,8 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
         <div>
           <p className="text-[10px] text-zinc-600 uppercase tracking-[0.25em]">Закрытый раздел</p>
-          <h1 className="text-lg font-black italic text-white leading-tight tracking-wide">
-            BELKA TEAM
+          <h1 className="text-lg font-black text-white leading-tight">
+            belka<span className="text-[oklch(69.6%_0.17_162.48)]">-team</span>
           </h1>
         </div>
         <button
