@@ -11,6 +11,7 @@ type Tab = "schedule" | "expenses";
 // ─── Schedule data ────────────────────────────────────────────────────────────
 type Tag = { label: string; color: string };
 type Lang = "ru" | "en";
+type DayKey = "day1" | "day2";
 
 type LangContent = { title: string; desc: string; tags: Tag[] };
 
@@ -21,168 +22,208 @@ type ScheduleItem = {
   en: LangContent;
 };
 
+type ScheduleDay = {
+  ru: { label: string; subtitle: string };
+  en: { label: string; subtitle: string };
+  items: ScheduleItem[];
+};
 
+// Shared tag presets
+const T = {
+  org:    { ru: { label: "Организация",  color: "bg-zinc-700 text-zinc-300"      }, en: { label: "Organisation",  color: "bg-zinc-700 text-zinc-300"      } },
+  tech:   { ru: { label: "Техконтроль",  color: "bg-blue-500/20 text-blue-400"   }, en: { label: "Tech Check",    color: "bg-blue-500/20 text-blue-400"   } },
+  open:   { ru: { label: "Открытие",     color: "bg-orange-500/20 text-orange-400" }, en: { label: "Opening",     color: "bg-orange-500/20 text-orange-400" } },
+  brief:  { ru: { label: "Брифинг",      color: "bg-zinc-700 text-zinc-300"      }, en: { label: "Briefing",      color: "bg-zinc-700 text-zinc-300"      } },
+  prac:   { ru: { label: "Тренировка",   color: "bg-green-500/20 text-green-400" }, en: { label: "Practice",      color: "bg-green-500/20 text-green-400" } },
+  comp:   { ru: { label: "Соревнование", color: "bg-purple-500/20 text-purple-400" }, en: { label: "Competition", color: "bg-purple-500/20 text-purple-400" } },
+  qual:   { ru: { label: "Квалификация", color: "bg-yellow-500/20 text-yellow-400" }, en: { label: "Qualification", color: "bg-yellow-500/20 text-yellow-400" } },
+  elim:   { ru: { label: "Отбор",        color: "bg-orange-500/20 text-orange-400" }, en: { label: "Elimination",  color: "bg-orange-500/20 text-orange-400" } },
+  final:  { ru: { label: "Финал",        color: "bg-red-500/20 text-red-400"     }, en: { label: "Final",         color: "bg-red-500/20 text-red-400"     } },
+  award:  { ru: { label: "Церемония",    color: "bg-yellow-500/20 text-yellow-400" }, en: { label: "Ceremony",   color: "bg-yellow-500/20 text-yellow-400" } },
+  close:  { ru: { label: "Закрытие",     color: "bg-zinc-700 text-zinc-300"      }, en: { label: "Closing",       color: "bg-zinc-700 text-zinc-300"      } },
+  pause:  { ru: { label: "Перерыв",      color: "bg-zinc-700 text-zinc-300"      }, en: { label: "Break",         color: "bg-zinc-700 text-zinc-300"      } },
+  fpv:    { ru: { label: "FPV Racing",   color: "bg-sky-500/20 text-sky-400"     }, en: { label: "FPV Racing",    color: "bg-sky-500/20 text-sky-400"     } },
+  whoop:  { ru: { label: "Tiny Whoop",   color: "bg-pink-500/20 text-pink-400"   }, en: { label: "Tiny Whoop",    color: "bg-pink-500/20 text-pink-400"   } },
+};
 
-const scheduleItems: ScheduleItem[] = [
-  {
-    time: "10:00 – 11:00",
-    emoji: "📋",
-    ru: {
-      title: "Прибытие и регистрация",
-      desc: "Прибытие участников соревнований. Регистрация пилотов и команд, выдача аккредитации. Работа мандатной комиссии: проверка дронов, контроллеров, аккумуляторов и оборудования на соответствие техническим требованиям категорий.",
-      tags: [
-        { label: "Организация", color: "bg-zinc-700 text-zinc-300" },
-        { label: "Техконтроль", color: "bg-blue-500/20 text-blue-400" },
-      ],
-    },
-    en: {
-      title: "Arrival & Registration",
-      desc: "Participant arrival and team check-in. Pilots receive accreditation badges and competition materials. The technical committee inspects drones, controllers, batteries, and all equipment for compliance with category requirements.",
-      tags: [
-        { label: "Organisation", color: "bg-zinc-700 text-zinc-300" },
-        { label: "Tech Check", color: "bg-blue-500/20 text-blue-400" },
-      ],
-    },
+function tags(lang: Lang, ...keys: (keyof typeof T)[]): Tag[] {
+  return keys.map(k => T[k][lang]);
+}
+
+const scheduleDays: Record<DayKey, ScheduleDay> = {
+  day1: {
+    ru: { label: "День 1 — 30 мая", subtitle: "Тренировки и квалификация" },
+    en: { label: "Day 1 — May 30", subtitle: "Practice & Qualification" },
+    items: [
+      {
+        time: "10:00 – 11:00",
+        emoji: "📋",
+        ru: { title: "Прибытие и регистрация", tags: tags("ru", "org", "tech"),
+          desc: "Прибытие участников соревнований FPV Racing и Tiny Whoop. Регистрация пилотов и команд, выдача аккредитации. Работа мандатной комиссии: проверка дронов, контроллеров, аккумуляторов и оборудования на соответствие техническим требованиям категорий." },
+        en: { title: "Arrival & Registration", tags: tags("en", "org", "tech"),
+          desc: "Arrival of FPV Racing and Tiny Whoop participants. Pilot and team check-in, accreditation badges issued. Technical committee inspects all drones, controllers, batteries, and equipment for compliance with category requirements." },
+      },
+      {
+        time: "11:00 – 11:15",
+        emoji: "📣",
+        ru: { title: "Общий брифинг и открытие соревнований", tags: tags("ru", "open", "brief"),
+          desc: "Приветственное слово организаторов. Объяснение регламента для обеих дисциплин — FPV Racing и Tiny Whoop, порядка вылетов, правил безопасности и процедуры судейства. Официальное открытие. Обязательно для всех пилотов." },
+        en: { title: "General Briefing & Opening Ceremony", tags: tags("en", "open", "brief"),
+          desc: "Welcome from the organising committee. Full briefing on regulations for both disciplines — FPV Racing and Tiny Whoop — flight order, safety rules, and judging procedures. Official opening of DRONECON 2026. Mandatory for all pilots." },
+      },
+      {
+        time: "11:15 – 13:30",
+        emoji: "🛸",
+        ru: { title: "Тренировочные вылеты", tags: tags("ru", "prac", "fpv", "whoop"),
+          desc: "Расширенный блок тренировочных вылетов для обеих дисциплин. FPV-пилоты и Tiny Whoop пилоты поочерёдно облетают трассу, проверяют сигнал, настройки видео и параметры квада. Результаты не засчитываются. Достаточно времени для полноценной подготовки." },
+        en: { title: "Practice Flights", tags: tags("en", "prac", "fpv", "whoop"),
+          desc: "Extended practice block for both disciplines. FPV Racing and Tiny Whoop pilots take turns on track to survey the course, verify video signal, OSD settings, and tune their quads. No results recorded. Ample time for proper preparation." },
+      },
+      {
+        time: "13:30 – 14:00",
+        emoji: "🍽️",
+        ru: { title: "Перерыв — обед", tags: tags("ru", "pause"),
+          desc: "Технический перерыв. Пилоты могут зарядить аккумуляторы, провести обслуживание оборудования и пообедать перед квалификацией." },
+        en: { title: "Break — Lunch", tags: tags("en", "pause"),
+          desc: "Technical break. Pilots can charge batteries, perform maintenance, and have lunch before qualification begins." },
+      },
+      {
+        time: "14:00 – 16:00",
+        emoji: "🎯",
+        ru: { title: "Квалификация — FPV Racing", tags: tags("ru", "qual", "fpv"),
+          desc: "Первый зачётный этап FPV Racing. Каждый пилот выполняет несколько квалификационных раундов, лучшее время идёт в зачёт. По результатам формируется сетка отборочных раундов второго дня. Параллельно — квалификация Tiny Whoop." },
+        en: { title: "Qualification — FPV Racing", tags: tags("en", "qual", "fpv"),
+          desc: "First scored stage for FPV Racing. Each pilot completes multiple qualification rounds; best times feed into the standings. Bracket seeding for Day 2 elimination is determined here. Tiny Whoop qualification runs in parallel." },
+      },
+      {
+        time: "14:00 – 16:00",
+        emoji: "🐝",
+        ru: { title: "Квалификация — Tiny Whoop", tags: tags("ru", "qual", "whoop"),
+          desc: "Квалификационные раунды Tiny Whoop проводятся параллельно с FPV Racing на отдельной трассе. Пилоты выполняют несколько заходов, лучшее время определяет позицию в сетке на второй день." },
+        en: { title: "Qualification — Tiny Whoop", tags: tags("en", "qual", "whoop"),
+          desc: "Tiny Whoop qualification rounds run in parallel with FPV Racing on a separate course. Pilots complete multiple runs; best times determine bracket seeding for Day 2." },
+      },
+      {
+        time: "16:00 – 17:30",
+        emoji: "🎯",
+        ru: { title: "Квалификация — FPV Racing (продолжение)", tags: tags("ru", "qual", "fpv"),
+          desc: "Продолжение квалификационных раундов FPV Racing. Дополнительные попытки для улучшения позиции в общем зачёте. По окончании — предварительное подведение итогов дня." },
+        en: { title: "Qualification — FPV Racing (continued)", tags: tags("en", "qual", "fpv"),
+          desc: "Continuation of FPV Racing qualification rounds. Additional attempts for pilots to improve their standings. Preliminary day results announced at the end." },
+      },
+      {
+        time: "17:30 – 18:00",
+        emoji: "📊",
+        ru: { title: "Итоги дня", tags: tags("ru", "org"),
+          desc: "Подведение предварительных итогов первого дня. Публикация промежуточных таблиц квалификации FPV Racing и Tiny Whoop. Информация об организации второго дня соревнований." },
+        en: { title: "End of Day 1", tags: tags("en", "org"),
+          desc: "Preliminary results of Day 1 announced. Intermediate qualification standings published for both FPV Racing and Tiny Whoop. Organisational information for Day 2." },
+      },
+    ],
   },
-  {
-    time: "11:00 – 11:15",
-    emoji: "📣",
-    ru: {
-      title: "Общий брифинг и открытие",
-      desc: "Приветственное слово организаторов. Объяснение регламента соревнований, порядка вылетов, правил безопасности и процедуры судейства. Официальное открытие соревнований. Обязательно для всех пилотов и членов команд.",
-      tags: [
-        { label: "Открытие", color: "bg-orange-500/20 text-orange-400" },
-        { label: "Брифинг", color: "bg-zinc-700 text-zinc-300" },
-      ],
-    },
-    en: {
-      title: "General Briefing & Opening",
-      desc: "Welcome address from the organising committee. Full briefing on competition regulations, flight order, safety rules, and judging procedures. Official opening of DRONECON 2026. Attendance is mandatory for all pilots and team members.",
-      tags: [
-        { label: "Opening", color: "bg-orange-500/20 text-orange-400" },
-        { label: "Briefing", color: "bg-zinc-700 text-zinc-300" },
-      ],
-    },
+  day2: {
+    ru: { label: "День 2 — 31 мая", subtitle: "Квалификация, Elimination и финалы" },
+    en: { label: "Day 2 — May 31", subtitle: "Qualification, Elimination & Finals" },
+    items: [
+      {
+        time: "09:00 – 09:15",
+        emoji: "📣",
+        ru: { title: "Утренний брифинг", tags: tags("ru", "brief"),
+          desc: "Брифинг перед Elimination раундами. Судьи подтверждают окончательные результаты квалификации, объясняют сетку и порядок проведения отборочных и финальных заездов." },
+        en: { title: "Morning Briefing", tags: tags("en", "brief"),
+          desc: "Briefing before elimination rounds. Judges confirm final qualification results, explain the bracket, and outline the schedule for elimination and final heats." },
+      },
+      {
+        time: "09:15 – 11:00",
+        emoji: "🎯",
+        ru: { title: "Квалификация — FPV Racing (финальные раунды)", tags: tags("ru", "qual", "fpv"),
+          desc: "Последние квалификационные раунды FPV Racing. Последний шанс пилотов улучшить позицию в таблице перед формированием финальной сетки Elimination." },
+        en: { title: "Qualification — FPV Racing (final rounds)", tags: tags("en", "qual", "fpv"),
+          desc: "Final qualification rounds for FPV Racing. Last chance for pilots to improve their bracket position before the elimination draw is finalised." },
+      },
+      {
+        time: "09:15 – 11:00",
+        emoji: "🐝",
+        ru: { title: "Квалификация — Tiny Whoop (финальные раунды)", tags: tags("ru", "qual", "whoop"),
+          desc: "Завершающие квалификационные заезды Tiny Whoop параллельно с FPV Racing. По окончании формируется финальная сетка отборочного этапа." },
+        en: { title: "Qualification — Tiny Whoop (final rounds)", tags: tags("en", "qual", "whoop"),
+          desc: "Final Tiny Whoop qualification heats running in parallel with FPV Racing. Elimination bracket is finalised on completion." },
+      },
+      {
+        time: "11:00 – 11:15",
+        emoji: "📊",
+        ru: { title: "Объявление сетки Elimination", tags: tags("ru", "org"),
+          desc: "Официальное объявление финальных таблиц квалификации и сеток Elimination для FPV Racing и Tiny Whoop. Публикация на информационных стендах и в официальных каналах мероприятия." },
+        en: { title: "Elimination Bracket Announcement", tags: tags("en", "org"),
+          desc: "Official announcement of final qualification standings and elimination brackets for both FPV Racing and Tiny Whoop. Published on notice boards and official event channels." },
+      },
+      {
+        time: "11:15 – 12:00",
+        emoji: "🍽️",
+        ru: { title: "Перерыв — обед", tags: tags("ru", "pause"),
+          desc: "Технический перерыв перед Elimination раундами. Зарядка аккумуляторов, финальная настройка оборудования, обед." },
+        en: { title: "Break — Lunch", tags: tags("en", "pause"),
+          desc: "Technical break before elimination rounds. Battery charging, final equipment tuning, lunch." },
+      },
+      {
+        time: "12:00 – 14:30",
+        emoji: "⚡",
+        ru: { title: "Elimination — FPV Racing", tags: tags("ru", "elim", "fpv"),
+          desc: "Отборочные гонки FPV Racing на выбывание. Пилоты соревнуются в группах по сетке, победители проходят в следующий раунд. Высокий темп, прямые дуэли, максимальная конкуренция. Финалисты определяются по итогам всех раундов." },
+        en: { title: "Elimination — FPV Racing", tags: tags("en", "elim", "fpv"),
+          desc: "FPV Racing head-to-head knockout rounds. Pilots race in bracketed groups; winners advance. High pace, direct duels, maximum competition. Finalists are confirmed after all elimination rounds." },
+      },
+      {
+        time: "12:00 – 14:30",
+        emoji: "🐝",
+        ru: { title: "Elimination — Tiny Whoop", tags: tags("ru", "elim", "whoop"),
+          desc: "Отборочный этап Tiny Whoop проходит параллельно с FPV Racing на отдельной трассе. Гонки на выбывание по сетке квалификации, победители проходят в финал." },
+        en: { title: "Elimination — Tiny Whoop", tags: tags("en", "elim", "whoop"),
+          desc: "Tiny Whoop elimination rounds run in parallel with FPV Racing on a separate course. Knockout races seeded by qualification; winners advance to the final." },
+      },
+      {
+        time: "14:30 – 15:00",
+        emoji: "🔧",
+        ru: { title: "Техническая подготовка к финалу", tags: tags("ru", "pause"),
+          desc: "Финалисты обеих дисциплин проводят финальную проверку оборудования и краткие тестовые вылеты перед решающими заездами." },
+        en: { title: "Technical Preparation for Finals", tags: tags("en", "pause"),
+          desc: "Finalists in both disciplines complete final equipment checks and brief test runs before the decisive heats." },
+      },
+      {
+        time: "15:00 – 16:30",
+        emoji: "🏁",
+        ru: { title: "Финал — FPV Racing", tags: tags("ru", "final", "fpv"),
+          desc: "Финальные заезды FPV Racing — решающие гонки между лучшими пилотами чемпионата. Определяются победитель и призёры. Прямая трансляция, комментаторы, максимальный накал." },
+        en: { title: "Final — FPV Racing", tags: tags("en", "final", "fpv"),
+          desc: "FPV Racing finals — decisive races between the top pilots of the championship. Winner and podium finishers determined. Live coverage, commentary, peak atmosphere." },
+      },
+      {
+        time: "15:00 – 16:30",
+        emoji: "🐝",
+        ru: { title: "Финал — Tiny Whoop", tags: tags("ru", "final", "whoop"),
+          desc: "Финальные гонки Tiny Whoop параллельно с FPV Racing на отдельной трассе. Определяются победитель и призёры категории Tiny Whoop." },
+        en: { title: "Final — Tiny Whoop", tags: tags("en", "final", "whoop"),
+          desc: "Tiny Whoop finals run in parallel with FPV Racing on a separate course. Winner and podium of the Tiny Whoop category are determined." },
+      },
+      {
+        time: "17:00 – 17:45",
+        emoji: "🏆",
+        ru: { title: "Награждение победителей и призёров", tags: tags("ru", "award"),
+          desc: "Торжественное награждение победителей и призёров FPV Racing и Tiny Whoop — кубки, медали, призы. Слово организаторов и почётных гостей. Общее фото участников." },
+        en: { title: "Award Ceremony", tags: tags("en", "award"),
+          desc: "Presentation of trophies, medals, and prizes to FPV Racing and Tiny Whoop winners and podium finishers. Closing remarks from organisers and honoured guests. Group photo of all participants." },
+      },
+      {
+        time: "17:45 – 18:00",
+        emoji: "🎉",
+        ru: { title: "Закрытие соревнований", tags: tags("ru", "close"),
+          desc: "Официальное закрытие DRONECON 2026. Участники приглашаются к неформальному общению и обмену опытом после окончания программы." },
+        en: { title: "Closing of DRONECON 2026", tags: tags("en", "close"),
+          desc: "Official closing of DRONECON 2026. Participants are invited to stay for informal networking and experience sharing." },
+      },
+    ],
   },
-  {
-    time: "11:15 – 12:00",
-    emoji: "🛸",
-    ru: {
-      title: "Тренировочные вылеты",
-      desc: "Ознакомительные полёты для всех участников. Возможность облететь трассу, проверить сигнал, настройки видео и курсовые параметры квада. Судьи фиксируют готовность пилотов — результаты не засчитываются.",
-      tags: [
-        { label: "Тренировка", color: "bg-green-500/20 text-green-400" },
-        { label: "Соревнование", color: "bg-purple-500/20 text-purple-400" },
-      ],
-    },
-    en: {
-      title: "Practice Flights",
-      desc: "Familiarisation laps for all participants. Pilots can survey the course, verify video signal, OSD settings, and tune their quads before racing begins. Judges note pilot readiness — no results are recorded.",
-      tags: [
-        { label: "Practice", color: "bg-green-500/20 text-green-400" },
-        { label: "Competition", color: "bg-purple-500/20 text-purple-400" },
-      ],
-    },
-  },
-  {
-    time: "12:00 – 14:30",
-    emoji: "🎯",
-    ru: {
-      title: "Квалификация",
-      desc: "Первый зачётный этап. Каждый пилот выполняет установленное количество раундов, результаты идут в общий зачёт. По итогам квалификации формируется сетка отборочного этапа. Лучшее время каждого раунда учитывается в финальном рейтинге.",
-      tags: [
-        { label: "Квалификация", color: "bg-yellow-500/20 text-yellow-400" },
-        { label: "Соревнование", color: "bg-purple-500/20 text-purple-400" },
-      ],
-    },
-    en: {
-      title: "Qualification",
-      desc: "First scored stage. Each pilot completes a set number of rounds; times count toward the overall standings. Qualification results determine the bracket seeding for the elimination round. Best lap per round feeds into the final ranking.",
-      tags: [
-        { label: "Qualification", color: "bg-yellow-500/20 text-yellow-400" },
-        { label: "Competition", color: "bg-purple-500/20 text-purple-400" },
-      ],
-    },
-  },
-  {
-    time: "14:30 – 15:00",
-    emoji: "🍽️",
-    ru: {
-      title: "Перерыв — обед",
-      desc: "Технический перерыв. Пилоты могут зарядить аккумуляторы, провести обслуживание оборудования, пообедать и отдохнуть перед отборочным этапом.",
-      tags: [
-        { label: "Перерыв", color: "bg-zinc-700 text-zinc-300" },
-      ],
-    },
-    en: {
-      title: "Break — Lunch",
-      desc: "Technical break. Pilots can charge batteries, perform equipment maintenance, grab lunch, and rest before the elimination rounds begin.",
-      tags: [
-        { label: "Break", color: "bg-zinc-700 text-zinc-300" },
-      ],
-    },
-  },
-  {
-    time: "15:00 – 17:00",
-    emoji: "⚡",
-    ru: {
-      title: "Отборочный этап",
-      desc: "Гонки на выбывание по результатам квалификации. Пилоты соревнуются в группах, лучшие проходят в финал. Высокий темп, прямые столкновения, максимальная интенсивность. Состав финальных групп определяется по итогам этого этапа.",
-      tags: [
-        { label: "Отбор", color: "bg-orange-500/20 text-orange-400" },
-        { label: "Соревнование", color: "bg-purple-500/20 text-purple-400" },
-      ],
-    },
-    en: {
-      title: "Elimination Round",
-      desc: "Head-to-head knockout races seeded by qualification results. Pilots compete in groups; top finishers advance to the final. High pace, direct battles, maximum intensity — finalists are determined here.",
-      tags: [
-        { label: "Elimination", color: "bg-orange-500/20 text-orange-400" },
-        { label: "Competition", color: "bg-purple-500/20 text-purple-400" },
-      ],
-    },
-  },
-  {
-    time: "17:00 – 17:45",
-    emoji: "🏁",
-    ru: {
-      title: "Финальный этап",
-      desc: "Решающие гонки между лучшими пилотами соревнований. Финал определяет победителей и призёров во всех категориях. Прямая трансляция, комментаторы, максимальный накал — лучший момент дня для зрителей и участников.",
-      tags: [
-        { label: "Финал", color: "bg-red-500/20 text-red-400" },
-        { label: "Соревнование", color: "bg-purple-500/20 text-purple-400" },
-      ],
-    },
-    en: {
-      title: "Final Round",
-      desc: "The decisive races between the top pilots of the day. The final crowns the winners and podium finishers across all categories. Live coverage, commentary, and maximum atmosphere — the highlight of the event.",
-      tags: [
-        { label: "Final", color: "bg-red-500/20 text-red-400" },
-        { label: "Competition", color: "bg-purple-500/20 text-purple-400" },
-      ],
-    },
-  },
-  {
-    time: "17:45 – 18:00",
-    emoji: "🏆",
-    ru: {
-      title: "Награждение и закрытие",
-      desc: "Торжественное награждение победителей и призёров соревнований — кубки, медали, призы. Слово организаторов и почётных гостей. Официальное закрытие соревнований DRONECON 2026.",
-      tags: [
-        { label: "Церемония", color: "bg-yellow-500/20 text-yellow-400" },
-        { label: "Закрытие", color: "bg-zinc-700 text-zinc-300" },
-      ],
-    },
-    en: {
-      title: "Award Ceremony & Closing",
-      desc: "Presentation of trophies, medals, and prizes to the winners and podium finishers. Closing remarks from organisers and honoured guests. Official closing of DRONECON 2026.",
-      tags: [
-        { label: "Ceremony", color: "bg-yellow-500/20 text-yellow-400" },
-        { label: "Closing", color: "bg-zinc-700 text-zinc-300" },
-      ],
-    },
-  },
-];
+};
 
 // ─── Expenses data (Монголия.md, 16.04.2026) ─────────────────────────────────
 const expensesData = [
@@ -298,53 +339,69 @@ function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
 // ─── Schedule tab ─────────────────────────────────────────────────────────────
 function ScheduleTab() {
   const [lang, setLang] = useState<Lang>("en");
+  const [day, setDay] = useState<DayKey>("day1");
+
+  const currentDay = scheduleDays[day];
+  const dayMeta = currentDay[lang];
 
   return (
     <div className="max-w-2xl mx-auto">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4 mb-7">
+      {/* Header row */}
+      <div className="flex items-start justify-between gap-4 mb-5">
         <div>
           <p className="text-[10px] text-zinc-600 uppercase tracking-[0.2em] mb-1">DRONECON 2026</p>
-          <h2 className="text-xl font-black text-white mb-1">
+          <h2 className="text-xl font-black text-white mb-0.5">
             {lang === "ru" ? "Программа соревнований" : "Competition Schedule"}
           </h2>
-          <p className="text-orange-400 text-sm font-semibold">
-            {lang === "ru" ? "Улан-Батор, Монголия · 30 мая 2026" : "Ulaanbaatar, Mongolia · May 30, 2026"}
+          <p className="text-zinc-500 text-xs">
+            {lang === "ru" ? "Улан-Батор, Монголия · 30–31 мая 2026" : "Ulaanbaatar, Mongolia · May 30–31, 2026"}
           </p>
         </div>
-
         {/* Language toggle */}
         <div className="flex shrink-0 bg-zinc-900 border border-zinc-800 rounded-lg p-0.5">
           {(["ru", "en"] as Lang[]).map(l => (
-            <button
-              key={l}
-              onClick={() => setLang(l)}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-widest transition ${
-                lang === l
-                  ? "bg-orange-500 text-white"
-                  : "text-zinc-500 hover:text-zinc-300"
-              }`}
-            >
+            <button key={l} onClick={() => setLang(l)}
+              className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-widest transition ${lang === l ? "bg-orange-500 text-white" : "text-zinc-500 hover:text-zinc-300"}`}>
               {l}
             </button>
           ))}
         </div>
       </div>
 
+      {/* Day tabs */}
+      <div className="flex gap-2 mb-6">
+        {(["day1", "day2"] as DayKey[]).map(d => (
+          <button key={d} onClick={() => setDay(d)}
+            className={`flex-1 py-2.5 px-3 rounded-xl border text-xs font-bold transition ${
+              day === d
+                ? "bg-orange-500/15 border-orange-500/40 text-orange-400"
+                : "bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700"
+            }`}>
+            <div className="font-black">{scheduleDays[d][lang].label}</div>
+            <div className={`text-[10px] font-normal mt-0.5 ${day === d ? "text-orange-500/70" : "text-zinc-600"}`}>
+              {scheduleDays[d][lang].subtitle}
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* Active day label */}
+      <div className="border-b border-zinc-800 pb-3 mb-5">
+        <p className="text-orange-400 text-sm font-black">{dayMeta.label}</p>
+        <p className="text-zinc-500 text-xs mt-0.5">{dayMeta.subtitle}</p>
+      </div>
+
       {/* Timeline */}
       <div className="relative flex flex-col gap-0">
         <div className="absolute left-[19px] top-5 bottom-5 w-px bg-zinc-800 z-0" />
 
-        {scheduleItems.map((item, i) => {
+        {currentDay.items.map((item, i) => {
           const t = item[lang];
           return (
-            <div key={i} className="relative flex gap-4 pb-6 last:pb-0">
-              {/* Emoji bubble */}
+            <div key={i} className="relative flex gap-4 pb-5 last:pb-0">
               <div className="shrink-0 z-10 w-10 h-10 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-lg">
                 {item.emoji}
               </div>
-
-              {/* Card */}
               <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 min-w-0">
                 <div className="flex items-start justify-between gap-2 mb-2 flex-wrap">
                   <span className="text-orange-500 text-xs font-mono font-bold tabular-nums whitespace-nowrap">
