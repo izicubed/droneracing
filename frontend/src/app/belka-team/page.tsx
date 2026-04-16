@@ -10,94 +10,177 @@ type Tab = "schedule" | "expenses";
 
 // ─── Schedule data ────────────────────────────────────────────────────────────
 type Tag = { label: string; color: string };
+type Lang = "ru" | "en";
+
+type LangContent = { title: string; desc: string; tags: Tag[] };
 
 type ScheduleItem = {
   time: string;
   emoji: string;
-  title: string;
-  desc: string;
-  tags: Tag[];
+  ru: LangContent;
+  en: LangContent;
 };
+
+
 
 const scheduleItems: ScheduleItem[] = [
   {
     time: "10:00 – 11:00",
     emoji: "📋",
-    title: "Прибытие и регистрация",
-    desc: "Прибытие участников соревнований. Регистрация пилотов и команд, выдача аккредитации. Работа мандатной комиссии: проверка дронов, контроллеров, аккумуляторов и оборудования на соответствие техническим требованиям категорий.",
-    tags: [
-      { label: "Организация", color: "bg-zinc-700 text-zinc-300" },
-      { label: "Техконтроль", color: "bg-blue-500/20 text-blue-400" },
-    ],
+    ru: {
+      title: "Прибытие и регистрация",
+      desc: "Прибытие участников соревнований. Регистрация пилотов и команд, выдача аккредитации. Работа мандатной комиссии: проверка дронов, контроллеров, аккумуляторов и оборудования на соответствие техническим требованиям категорий.",
+      tags: [
+        { label: "Организация", color: "bg-zinc-700 text-zinc-300" },
+        { label: "Техконтроль", color: "bg-blue-500/20 text-blue-400" },
+      ],
+    },
+    en: {
+      title: "Arrival & Registration",
+      desc: "Participant arrival and team check-in. Pilots receive accreditation badges and competition materials. The technical committee inspects drones, controllers, batteries, and all equipment for compliance with category requirements.",
+      tags: [
+        { label: "Organisation", color: "bg-zinc-700 text-zinc-300" },
+        { label: "Tech Check", color: "bg-blue-500/20 text-blue-400" },
+      ],
+    },
   },
   {
     time: "11:00 – 11:15",
     emoji: "📣",
-    title: "Общий брифинг и открытие",
-    desc: "Приветственное слово организаторов. Объяснение регламента соревнований, порядка вылетов, правил безопасности и процедуры судейства. Официальное открытие соревнований. Обязательно для всех пилотов и членов команд.",
-    tags: [
-      { label: "Открытие", color: "bg-orange-500/20 text-orange-400" },
-      { label: "Брифинг", color: "bg-zinc-700 text-zinc-300" },
-    ],
+    ru: {
+      title: "Общий брифинг и открытие",
+      desc: "Приветственное слово организаторов. Объяснение регламента соревнований, порядка вылетов, правил безопасности и процедуры судейства. Официальное открытие соревнований. Обязательно для всех пилотов и членов команд.",
+      tags: [
+        { label: "Открытие", color: "bg-orange-500/20 text-orange-400" },
+        { label: "Брифинг", color: "bg-zinc-700 text-zinc-300" },
+      ],
+    },
+    en: {
+      title: "General Briefing & Opening",
+      desc: "Welcome address from the organising committee. Full briefing on competition regulations, flight order, safety rules, and judging procedures. Official opening of DRONECON 2026. Attendance is mandatory for all pilots and team members.",
+      tags: [
+        { label: "Opening", color: "bg-orange-500/20 text-orange-400" },
+        { label: "Briefing", color: "bg-zinc-700 text-zinc-300" },
+      ],
+    },
   },
   {
     time: "11:15 – 12:00",
     emoji: "🛸",
-    title: "Тренировочные вылеты",
-    desc: "Ознакомительные полёты для всех участников. Возможность облететь трассу, проверить сигнал, настройки видео и курсовые параметры квада. Судьи фиксируют готовность пилотов — результаты не засчитываются.",
-    tags: [
-      { label: "Тренировка", color: "bg-green-500/20 text-green-400" },
-      { label: "Соревнование", color: "bg-purple-500/20 text-purple-400" },
-    ],
+    ru: {
+      title: "Тренировочные вылеты",
+      desc: "Ознакомительные полёты для всех участников. Возможность облететь трассу, проверить сигнал, настройки видео и курсовые параметры квада. Судьи фиксируют готовность пилотов — результаты не засчитываются.",
+      tags: [
+        { label: "Тренировка", color: "bg-green-500/20 text-green-400" },
+        { label: "Соревнование", color: "bg-purple-500/20 text-purple-400" },
+      ],
+    },
+    en: {
+      title: "Practice Flights",
+      desc: "Familiarisation laps for all participants. Pilots can survey the course, verify video signal, OSD settings, and tune their quads before racing begins. Judges note pilot readiness — no results are recorded.",
+      tags: [
+        { label: "Practice", color: "bg-green-500/20 text-green-400" },
+        { label: "Competition", color: "bg-purple-500/20 text-purple-400" },
+      ],
+    },
   },
   {
     time: "12:00 – 14:30",
     emoji: "🎯",
-    title: "Квалификация",
-    desc: "Первый зачётный этап. Каждый пилот выполняет установленное количество раундов, результаты идут в общий зачёт. По итогам квалификации формируется сетка отборочного этапа. Лучшее время каждого раунда учитывается в финальном рейтинге.",
-    tags: [
-      { label: "Квалификация", color: "bg-yellow-500/20 text-yellow-400" },
-      { label: "Соревнование", color: "bg-purple-500/20 text-purple-400" },
-    ],
+    ru: {
+      title: "Квалификация",
+      desc: "Первый зачётный этап. Каждый пилот выполняет установленное количество раундов, результаты идут в общий зачёт. По итогам квалификации формируется сетка отборочного этапа. Лучшее время каждого раунда учитывается в финальном рейтинге.",
+      tags: [
+        { label: "Квалификация", color: "bg-yellow-500/20 text-yellow-400" },
+        { label: "Соревнование", color: "bg-purple-500/20 text-purple-400" },
+      ],
+    },
+    en: {
+      title: "Qualification",
+      desc: "First scored stage. Each pilot completes a set number of rounds; times count toward the overall standings. Qualification results determine the bracket seeding for the elimination round. Best lap per round feeds into the final ranking.",
+      tags: [
+        { label: "Qualification", color: "bg-yellow-500/20 text-yellow-400" },
+        { label: "Competition", color: "bg-purple-500/20 text-purple-400" },
+      ],
+    },
   },
   {
     time: "14:30 – 15:00",
     emoji: "🍽️",
-    title: "Перерыв — обед",
-    desc: "Технический перерыв. Пилоты могут зарядить аккумуляторы, провести обслуживание оборудования, пообедать и отдохнуть перед отборочным этапом.",
-    tags: [
-      { label: "Перерыв", color: "bg-zinc-700 text-zinc-300" },
-    ],
+    ru: {
+      title: "Перерыв — обед",
+      desc: "Технический перерыв. Пилоты могут зарядить аккумуляторы, провести обслуживание оборудования, пообедать и отдохнуть перед отборочным этапом.",
+      tags: [
+        { label: "Перерыв", color: "bg-zinc-700 text-zinc-300" },
+      ],
+    },
+    en: {
+      title: "Break — Lunch",
+      desc: "Technical break. Pilots can charge batteries, perform equipment maintenance, grab lunch, and rest before the elimination rounds begin.",
+      tags: [
+        { label: "Break", color: "bg-zinc-700 text-zinc-300" },
+      ],
+    },
   },
   {
     time: "15:00 – 17:00",
     emoji: "⚡",
-    title: "Отборочный этап",
-    desc: "Гонки на выбывание по результатам квалификации. Пилоты соревнуются в группах, лучшие проходят в финал. Высокий темп, прямые столкновения, максимальная интенсивность. Состав финальных групп определяется по итогам этого этапа.",
-    tags: [
-      { label: "Отбор", color: "bg-orange-500/20 text-orange-400" },
-      { label: "Соревнование", color: "bg-purple-500/20 text-purple-400" },
-    ],
+    ru: {
+      title: "Отборочный этап",
+      desc: "Гонки на выбывание по результатам квалификации. Пилоты соревнуются в группах, лучшие проходят в финал. Высокий темп, прямые столкновения, максимальная интенсивность. Состав финальных групп определяется по итогам этого этапа.",
+      tags: [
+        { label: "Отбор", color: "bg-orange-500/20 text-orange-400" },
+        { label: "Соревнование", color: "bg-purple-500/20 text-purple-400" },
+      ],
+    },
+    en: {
+      title: "Elimination Round",
+      desc: "Head-to-head knockout races seeded by qualification results. Pilots compete in groups; top finishers advance to the final. High pace, direct battles, maximum intensity — finalists are determined here.",
+      tags: [
+        { label: "Elimination", color: "bg-orange-500/20 text-orange-400" },
+        { label: "Competition", color: "bg-purple-500/20 text-purple-400" },
+      ],
+    },
   },
   {
     time: "17:00 – 17:45",
     emoji: "🏁",
-    title: "Финальный этап",
-    desc: "Решающие гонки между лучшими пилотами соревнований. Финал определяет победителей и призёров во всех категориях. Прямая трансляция, комментаторы, максимальный накал — лучший момент дня для зрителей и участников.",
-    tags: [
-      { label: "Финал", color: "bg-red-500/20 text-red-400" },
-      { label: "Соревнование", color: "bg-purple-500/20 text-purple-400" },
-    ],
+    ru: {
+      title: "Финальный этап",
+      desc: "Решающие гонки между лучшими пилотами соревнований. Финал определяет победителей и призёров во всех категориях. Прямая трансляция, комментаторы, максимальный накал — лучший момент дня для зрителей и участников.",
+      tags: [
+        { label: "Финал", color: "bg-red-500/20 text-red-400" },
+        { label: "Соревнование", color: "bg-purple-500/20 text-purple-400" },
+      ],
+    },
+    en: {
+      title: "Final Round",
+      desc: "The decisive races between the top pilots of the day. The final crowns the winners and podium finishers across all categories. Live coverage, commentary, and maximum atmosphere — the highlight of the event.",
+      tags: [
+        { label: "Final", color: "bg-red-500/20 text-red-400" },
+        { label: "Competition", color: "bg-purple-500/20 text-purple-400" },
+      ],
+    },
   },
   {
     time: "17:45 – 18:00",
     emoji: "🏆",
-    title: "Награждение и закрытие",
-    desc: "Торжественное награждение победителей и призёров соревнований — кубки, медали, призы. Слово организаторов и почётных гостей. Официальное закрытие соревнований DRONECON 2026.",
-    tags: [
-      { label: "Церемония", color: "bg-yellow-500/20 text-yellow-400" },
-      { label: "Закрытие", color: "bg-zinc-700 text-zinc-300" },
-    ],
+    ru: {
+      title: "Награждение и закрытие",
+      desc: "Торжественное награждение победителей и призёров соревнований — кубки, медали, призы. Слово организаторов и почётных гостей. Официальное закрытие соревнований DRONECON 2026.",
+      tags: [
+        { label: "Церемония", color: "bg-yellow-500/20 text-yellow-400" },
+        { label: "Закрытие", color: "bg-zinc-700 text-zinc-300" },
+      ],
+    },
+    en: {
+      title: "Award Ceremony & Closing",
+      desc: "Presentation of trophies, medals, and prizes to the winners and podium finishers. Closing remarks from organisers and honoured guests. Official closing of DRONECON 2026.",
+      tags: [
+        { label: "Ceremony", color: "bg-yellow-500/20 text-yellow-400" },
+        { label: "Closing", color: "bg-zinc-700 text-zinc-300" },
+      ],
+    },
   },
 ];
 
@@ -214,46 +297,73 @@ function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
 
 // ─── Schedule tab ─────────────────────────────────────────────────────────────
 function ScheduleTab() {
+  const [lang, setLang] = useState<Lang>("ru");
+
   return (
     <div className="max-w-2xl mx-auto">
       {/* Header */}
-      <div className="mb-7">
-        <p className="text-[10px] text-zinc-600 uppercase tracking-[0.2em] mb-1">DRONECON 2026</p>
-        <h2 className="text-xl font-black text-white mb-1">Программа соревнований</h2>
-        <p className="text-orange-400 text-sm font-semibold">Улан-Батор, Монголия · 30 мая 2026</p>
+      <div className="flex items-start justify-between gap-4 mb-7">
+        <div>
+          <p className="text-[10px] text-zinc-600 uppercase tracking-[0.2em] mb-1">DRONECON 2026</p>
+          <h2 className="text-xl font-black text-white mb-1">
+            {lang === "ru" ? "Программа соревнований" : "Competition Schedule"}
+          </h2>
+          <p className="text-orange-400 text-sm font-semibold">
+            {lang === "ru" ? "Улан-Батор, Монголия · 30 мая 2026" : "Ulaanbaatar, Mongolia · May 30, 2026"}
+          </p>
+        </div>
+
+        {/* Language toggle */}
+        <div className="flex shrink-0 bg-zinc-900 border border-zinc-800 rounded-lg p-0.5">
+          {(["ru", "en"] as Lang[]).map(l => (
+            <button
+              key={l}
+              onClick={() => setLang(l)}
+              className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-widest transition ${
+                lang === l
+                  ? "bg-orange-500 text-white"
+                  : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Timeline */}
       <div className="relative flex flex-col gap-0">
-        {/* vertical line */}
         <div className="absolute left-[19px] top-5 bottom-5 w-px bg-zinc-800 z-0" />
 
-        {scheduleItems.map((item, i) => (
-          <div key={i} className="relative flex gap-4 pb-6 last:pb-0">
-            {/* Emoji bubble */}
-            <div className="shrink-0 z-10 w-10 h-10 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-lg">
-              {item.emoji}
-            </div>
-
-            {/* Card */}
-            <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 min-w-0">
-              <div className="flex items-start justify-between gap-2 mb-2 flex-wrap">
-                <span className="text-orange-500 text-xs font-mono font-bold tabular-nums whitespace-nowrap">
-                  {item.time}
-                </span>
-                <div className="flex flex-wrap gap-1">
-                  {item.tags.map(tag => (
-                    <span key={tag.label} className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${tag.color}`}>
-                      {tag.label}
-                    </span>
-                  ))}
-                </div>
+        {scheduleItems.map((item, i) => {
+          const t = item[lang];
+          return (
+            <div key={i} className="relative flex gap-4 pb-6 last:pb-0">
+              {/* Emoji bubble */}
+              <div className="shrink-0 z-10 w-10 h-10 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-lg">
+                {item.emoji}
               </div>
-              <p className="text-white text-sm font-bold mb-1">{item.title}</p>
-              <p className="text-zinc-500 text-xs leading-relaxed">{item.desc}</p>
+
+              {/* Card */}
+              <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 min-w-0">
+                <div className="flex items-start justify-between gap-2 mb-2 flex-wrap">
+                  <span className="text-orange-500 text-xs font-mono font-bold tabular-nums whitespace-nowrap">
+                    {item.time}
+                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {t.tags.map(tag => (
+                      <span key={tag.label} className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${tag.color}`}>
+                        {tag.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-white text-sm font-bold mb-1">{t.title}</p>
+                <p className="text-zinc-500 text-xs leading-relaxed">{t.desc}</p>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
