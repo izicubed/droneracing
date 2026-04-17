@@ -1,83 +1,11 @@
-"use client";
-
-import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PRODUCTS, getProductBySlug, formatPrice, discountPercent } from "@/lib/products";
+import OrderForm from "./OrderForm";
 
 export function generateStaticParams() {
   return PRODUCTS.map((p) => ({ slug: p.slug }));
-}
-
-function OrderForm() {
-  const [form, setForm] = useState({ name: "", contact: "", message: "" });
-  const [sent, setSent] = useState(false);
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSent(true);
-    setForm({ name: "", contact: "", message: "" });
-  }
-
-  if (sent) {
-    return (
-      <div className="bg-green-900/20 border border-green-700/50 rounded-xl px-6 py-10 text-center">
-        <div className="text-4xl mb-3">✅</div>
-        <p className="text-green-300 text-lg font-semibold">Сообщение отправлено!</p>
-        <p className="text-gray-400 mt-2 text-sm">Свяжемся с вами в ближайшее время.</p>
-        <button
-          onClick={() => setSent(false)}
-          className="mt-5 text-sm text-gray-500 hover:text-gray-300 transition-colors"
-        >
-          Отправить ещё
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-lg">
-      <div>
-        <label className="block text-sm text-gray-400 mb-1.5">Имя</label>
-        <input
-          type="text"
-          required
-          value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-          className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-orange-500 transition-colors text-sm"
-          placeholder="Ваше имя"
-        />
-      </div>
-      <div>
-        <label className="block text-sm text-gray-400 mb-1.5">Telegram / телефон</label>
-        <input
-          type="text"
-          required
-          value={form.contact}
-          onChange={(e) => setForm({ ...form, contact: e.target.value })}
-          className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-orange-500 transition-colors text-sm"
-          placeholder="@username или +7..."
-        />
-      </div>
-      <div>
-        <label className="block text-sm text-gray-400 mb-1.5">Что интересует?</label>
-        <textarea
-          rows={4}
-          value={form.message}
-          onChange={(e) => setForm({ ...form, message: e.target.value })}
-          className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-orange-500 transition-colors resize-none text-sm"
-          placeholder="Укажите количество и любые пожелания..."
-        />
-      </div>
-      <button
-        type="submit"
-        className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 rounded-xl transition-colors"
-      >
-        Отправить заявку
-      </button>
-    </form>
-  );
 }
 
 export default function ProductPage({ params }: { params: { slug: string } }) {
@@ -85,14 +13,6 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
   if (!product) notFound();
 
   const discount = discountPercent(product.price, product.oldPrice);
-
-  const relatedProducts = product.requires
-    ? PRODUCTS.filter((p) =>
-        product.requires!.some((req) =>
-          p.name.toLowerCase().includes(req.toLowerCase().split(" ")[0])
-        ) && p.slug !== product.slug
-      ).slice(0, 3)
-    : [];
 
   return (
     <main className="min-h-screen bg-gray-950 text-gray-100 font-sans">
@@ -190,10 +110,7 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
                   p.name.toLowerCase().includes(req.toLowerCase().split(" ")[0])
                 );
                 return (
-                  <div
-                    key={req}
-                    className="bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col gap-3"
-                  >
+                  <div key={req} className="bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col gap-3">
                     {linked ? (
                       <>
                         <div className="relative w-full h-28 rounded-lg overflow-hidden bg-gray-800">
