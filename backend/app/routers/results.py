@@ -23,6 +23,18 @@ class ResultCreate(BaseModel):
     link: Optional[str] = None
 
 
+class ResultUpdate(BaseModel):
+    pilot: Optional[str] = None
+    event_date: Optional[date] = None
+    competition_level: Optional[str] = None
+    drone_class: Optional[str] = None
+    qualification_place: Optional[int] = None
+    final_place: Optional[int] = None
+    race_name: Optional[str] = None
+    venue: Optional[str] = None
+    link: Optional[str] = None
+
+
 class ResultRead(ResultCreate):
     id: int
 
@@ -44,6 +56,18 @@ async def create_result(body: ResultCreate, db: AsyncSession = Depends(get_db)):
     await db.commit()
     await db.refresh(result)
     return result
+
+
+@router.patch("/{result_id}", response_model=ResultRead)
+async def update_result(result_id: int, body: ResultUpdate, db: AsyncSession = Depends(get_db)):
+    row = await db.get(Result, result_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Result not found")
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(row, field, value)
+    await db.commit()
+    await db.refresh(row)
+    return row
 
 
 @router.delete("/{result_id}", status_code=204)

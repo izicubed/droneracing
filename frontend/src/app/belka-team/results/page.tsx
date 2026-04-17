@@ -145,25 +145,43 @@ function PlaceBadge({ place }: { place: number }) {
   return <span className="font-bold text-zinc-500 text-sm">{place}</span>;
 }
 
-// ── Add Modal ─────────────────────────────────────────────────────────────────
+// ── Result Modal (add + edit) ──────────────────────────────────────────────────
 
-type AddModalProps = {
+type ResultModalProps = {
   onClose: () => void;
   onSaved: (r: ResultAPI) => void;
+  editingResult?: ResultAPI;
 };
 
-function AddModal({ onClose, onSaved }: AddModalProps) {
-  const [pilot, setPilot] = useState("LuckyNemo");
-  const [customPilot, setCustomPilot] = useState("");
-  const [useCustom, setUseCustom] = useState(false);
-  const [eventDate, setEventDate] = useState("");
-  const [competitionLevel, setCompetitionLevel] = useState(LEVELS[0]);
-  const [droneClass, setDroneClass] = useState(DRONE_CLASSES[0]);
-  const [qualPlace, setQualPlace] = useState("");
-  const [finalPlace, setFinalPlace] = useState("");
-  const [raceName, setRaceName] = useState("");
-  const [venue, setVenue] = useState("");
-  const [link, setLink] = useState("");
+function ResultModal({ onClose, onSaved, editingResult }: ResultModalProps) {
+  const isEdit = !!editingResult;
+
+  const initPilot = editingResult
+    ? PILOTS.includes(editingResult.pilot)
+      ? editingResult.pilot
+      : PILOTS[0]
+    : "LuckyNemo";
+  const initUseCustom = editingResult ? !PILOTS.includes(editingResult.pilot) : false;
+
+  const [pilot, setPilot] = useState(initPilot);
+  const [customPilot, setCustomPilot] = useState(
+    editingResult && !PILOTS.includes(editingResult.pilot) ? editingResult.pilot : ""
+  );
+  const [useCustom, setUseCustom] = useState(initUseCustom);
+  const [eventDate, setEventDate] = useState(editingResult?.event_date ?? "");
+  const [competitionLevel, setCompetitionLevel] = useState(
+    editingResult?.competition_level ?? LEVELS[0]
+  );
+  const [droneClass, setDroneClass] = useState(editingResult?.drone_class ?? DRONE_CLASSES[0]);
+  const [qualPlace, setQualPlace] = useState(
+    editingResult?.qualification_place != null ? String(editingResult.qualification_place) : ""
+  );
+  const [finalPlace, setFinalPlace] = useState(
+    editingResult?.final_place != null ? String(editingResult.final_place) : ""
+  );
+  const [raceName, setRaceName] = useState(editingResult?.race_name ?? "");
+  const [venue, setVenue] = useState(editingResult?.venue ?? "");
+  const [link, setLink] = useState(editingResult?.link ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -180,24 +198,27 @@ function AddModal({ onClose, onSaved }: AddModalProps) {
     setSaving(true);
     setError("");
     try {
-      const res = await fetch(`${API_URL}/results`, {
-        method: "POST",
+      const payload = {
+        pilot: resolvedPilot,
+        event_date: eventDate,
+        competition_level: competitionLevel,
+        drone_class: droneClass,
+        qualification_place: qualPlace ? parseInt(qualPlace, 10) : null,
+        final_place: parseInt(finalPlace, 10),
+        race_name: raceName,
+        venue: venue.trim() || null,
+        link: link.trim() || null,
+      };
+      const url = isEdit ? `${API_URL}/results/${editingResult!.id}` : `${API_URL}/results`;
+      const method = isEdit ? "PATCH" : "POST";
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          pilot: resolvedPilot,
-          event_date: eventDate,
-          competition_level: competitionLevel,
-          drone_class: droneClass,
-          qualification_place: qualPlace ? parseInt(qualPlace, 10) : null,
-          final_place: parseInt(finalPlace, 10),
-          race_name: raceName,
-          venue: venue.trim() || null,
-          link: link.trim() || null,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error(await res.text());
-      const created: ResultAPI = await res.json();
-      onSaved(created);
+      const saved: ResultAPI = await res.json();
+      onSaved(saved);
     } catch {
       setError("Ошибка сохранения. Проверь подключение к API.");
     } finally {
@@ -208,7 +229,9 @@ function AddModal({ onClose, onSaved }: AddModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
       <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-lg p-6 space-y-4">
-        <h2 className="text-lg font-black text-white">Добавить результат</h2>
+        <h2 className="text-lg font-black text-white">
+          {isEdit ? "Редактировать результат" : "Добавить результат"}
+        </h2>
 
         {/* Pilot */}
         <div className="space-y-1">
@@ -351,7 +374,7 @@ function AddModal({ onClose, onSaved }: AddModalProps) {
             disabled={saving}
             className="flex-1 py-2 text-sm font-bold bg-yellow-400 text-gray-950 rounded-lg hover:bg-yellow-300 transition disabled:opacity-50"
           >
-            {saving ? "Сохраняем..." : "Сохранить"}
+            {saving ? "Сохраняем..." : isEdit ? "Сохранить изменения" : "Сохранить"}
           </button>
         </div>
       </div>
@@ -366,6 +389,7 @@ export default function BelkaTeamResultsPage() {
   const [apiAvailable, setApiAvailable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingResult, setEditingResult] = useState<ResultAPI | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const [filterPilot, setFilterPilot] = useState("Все");
@@ -447,9 +471,12 @@ export default function BelkaTeamResultsPage() {
     }
   }
 
-  function handleAdded(r: ResultAPI) {
+  function handleSaved(r: ResultAPI) {
     setResults((prev) => {
-      const next = [...prev, r];
+      const existing = prev.find((x) => x.id === r.id);
+      const next = existing
+        ? prev.map((x) => (x.id === r.id ? r : x))
+        : [...prev, r];
       next.sort((a, b) => {
         if (a.final_place !== b.final_place) return a.final_place - b.final_place;
         return b.event_date.localeCompare(a.event_date);
@@ -457,6 +484,7 @@ export default function BelkaTeamResultsPage() {
       return next;
     });
     setShowAddModal(false);
+    setEditingResult(null);
   }
 
   const stats = useMemo(() => {
@@ -658,14 +686,23 @@ export default function BelkaTeamResultsPage() {
                     {apiAvailable && (
                       <td className="px-2 py-3 whitespace-nowrap">
                         {r.id > 0 && (
-                          <button
-                            onClick={() => handleDelete(r.id)}
-                            disabled={deletingId === r.id}
-                            className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-400 transition text-xs px-1 py-0.5 rounded disabled:opacity-30"
-                            title="Удалить"
-                          >
-                            🗑️
-                          </button>
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+                            <button
+                              onClick={() => setEditingResult(r)}
+                              className="text-gray-400 hover:text-yellow-400 transition text-xs px-1 py-0.5 rounded"
+                              title="Редактировать"
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              onClick={() => handleDelete(r.id)}
+                              disabled={deletingId === r.id}
+                              className="text-red-500 hover:text-red-400 transition text-xs px-1 py-0.5 rounded disabled:opacity-30"
+                              title="Удалить"
+                            >
+                              🗑️
+                            </button>
+                          </div>
                         )}
                       </td>
                     )}
@@ -689,7 +726,14 @@ export default function BelkaTeamResultsPage() {
       </div>
 
       {showAddModal && (
-        <AddModal onClose={() => setShowAddModal(false)} onSaved={handleAdded} />
+        <ResultModal onClose={() => setShowAddModal(false)} onSaved={handleSaved} />
+      )}
+      {editingResult && (
+        <ResultModal
+          onClose={() => setEditingResult(null)}
+          onSaved={handleSaved}
+          editingResult={editingResult}
+        />
       )}
     </main>
   );
