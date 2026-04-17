@@ -11,8 +11,8 @@ const BENEFITS = [
   "Полная запись статистики полёта, корректировки в любой момент",
   "Поддержка LED-панели для визуализации",
   "На дрон ничего устанавливать не нужно",
-  "До 16 пилотов одновременно, точность до 1 мс",
-  "🌐 Работа без интернета — полностью автономная система",
+  "До 8 пилотов в одном заезде, общее число пилотов на событии не ограничено, точность до 1 мс",
+  "🌐 Работает без интернета — полностью в локальной сети",
   "📡 Поддержка HD-передатчиков DJI и Avatar",
   "🔄 Восстановление пропущенных кругов (marshaling)",
   "📺 Интеграция с OBS для прямых трансляций",
@@ -25,7 +25,7 @@ const FAQ = [
   },
   {
     q: "Сколько пилотов поддерживает система?",
-    a: "До 16 пилотов одновременно. Количество приёмников RX5808 зависит от конфигурации сборки — по одному на каждые ворота трассы.",
+    a: "До 8 пилотов в одном заезде, общее число пилотов на событии не ограничено. Количество приёмников RX5808 зависит от конфигурации сборки — по одному на каждые ворота трассы.",
   },
   {
     q: "Нужен ли интернет для работы?",
@@ -65,14 +65,6 @@ const CATEGORIES = ["RotorHazard", "NuclearHazard"] as const;
 
 export default function RotorHazardPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [form, setForm] = useState({ name: "", contact: "", message: "" });
-  const [sent, setSent] = useState(false);
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSent(true);
-    setForm({ name: "", contact: "", message: "" });
-  }
 
   return (
     <main className="min-h-screen bg-gray-950 text-gray-100 font-sans">
@@ -202,96 +194,22 @@ export default function RotorHazardPage() {
           </div>
         </section>
 
-        {/* Контактная форма */}
+        {/* Контакт */}
         <section id="contact">
           <h2 className="text-2xl font-bold mb-6 text-white">Связаться / Заказать</h2>
-          {/* Contact info cards */}
-          <div className="grid sm:grid-cols-3 gap-4 mb-8">
+          <div className="flex flex-col items-center gap-4 py-8">
             <a
-              href="https://t.me/rdmfpv"
+              href="https://t.me/cubedny"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-3 bg-gray-900 border border-gray-800 hover:border-orange-500/50 rounded-xl px-5 py-4 transition-colors group"
+              className="inline-flex items-center gap-3 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white font-bold text-xl px-10 py-5 rounded-2xl transition-colors shadow-lg shadow-orange-500/20"
             >
-              <span className="text-2xl">✈️</span>
-              <div>
-                <div className="text-xs text-gray-500 mb-0.5">Telegram</div>
-                <div className="text-orange-400 font-semibold group-hover:text-orange-300 transition-colors">@rdmfpv</div>
-              </div>
+              <span>✈️</span>
+              <span>Написать в Telegram</span>
+              <span>→</span>
             </a>
-            <div className="flex items-center gap-3 bg-gray-900 border border-gray-800 rounded-xl px-5 py-4">
-              <span className="text-2xl">💳</span>
-              <div>
-                <div className="text-xs text-gray-500 mb-0.5">Оплата</div>
-                <div className="text-white text-sm">Перевод на карту, СБП</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 bg-gray-900 border border-gray-800 rounded-xl px-5 py-4">
-              <span className="text-2xl">📦</span>
-              <div>
-                <div className="text-xs text-gray-500 mb-0.5">Доставка</div>
-                <div className="text-white text-sm">СДЭК, Почта России, самовывоз (СПб)</div>
-              </div>
-            </div>
+            <p className="text-gray-500 text-sm">Ответим в течение 24 часов</p>
           </div>
-          <p className="text-gray-400 text-sm mb-6">
-            Или заполните форму ниже — ответим в течение 24 часов.
-          </p>
-
-          {sent ? (
-            <div className="bg-green-900/20 border border-green-700/50 rounded-xl px-6 py-10 text-center">
-              <div className="text-4xl mb-3">✅</div>
-              <p className="text-green-300 text-lg font-semibold">Сообщение отправлено!</p>
-              <p className="text-gray-400 mt-2 text-sm">Свяжемся с вами в ближайшее время.</p>
-              <button
-                onClick={() => setSent(false)}
-                className="mt-5 text-sm text-gray-500 hover:text-gray-300 transition-colors"
-              >
-                Отправить ещё
-              </button>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4 max-w-lg">
-              <div>
-                <label className="block text-sm text-gray-400 mb-1.5">Имя</label>
-                <input
-                  type="text"
-                  required
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-orange-500 transition-colors text-sm"
-                  placeholder="Ваше имя"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1.5">Telegram / телефон</label>
-                <input
-                  type="text"
-                  required
-                  value={form.contact}
-                  onChange={(e) => setForm({ ...form, contact: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-orange-500 transition-colors text-sm"
-                  placeholder="@username или +7..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1.5">Что интересует?</label>
-                <textarea
-                  rows={4}
-                  value={form.message}
-                  onChange={(e) => setForm({ ...form, message: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-orange-500 transition-colors resize-none text-sm"
-                  placeholder="Укажите товар или опишите задачу..."
-                />
-              </div>
-              <button
-                type="submit"
-                className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 rounded-xl transition-colors"
-              >
-                Отправить заявку
-              </button>
-            </form>
-          )}
         </section>
 
       </div>
