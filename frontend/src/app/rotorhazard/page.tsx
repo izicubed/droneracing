@@ -11,33 +11,53 @@ const BENEFITS = [
   "Полная запись статистики полёта, корректировки в любой момент",
   "Поддержка LED-панели для визуализации",
   "На дрон ничего устанавливать не нужно",
-  "До 8 ворот одновременно, точность до 1 мс",
+  "До 16 пилотов одновременно, точность до 1 мс",
+  "🌐 Работа без интернета — полностью автономная система",
+  "📡 Поддержка HD-передатчиков DJI и Avatar",
+  "🔄 Восстановление пропущенных кругов (marshaling)",
+  "📺 Интеграция с OBS для прямых трансляций",
 ];
 
 const FAQ = [
   {
-    q: "Что такое RotorHazard?",
-    a: "RotorHazard — это open-source система хронометража для FPV гонок дронов. Работает на Raspberry Pi, использует видеоприёмники RX5808 для фиксации прохождения ворот пилотами.",
+    q: "В чём разница между RotorHazard и NuclearHazard?",
+    a: "RotorHazard — оригинальная open-source система. NuclearHazard — улучшенная версия на той же базе, предсобранная на заводе. Atom — компактная версия NuclearHazard для небольших трасс. Все версии совместимы между собой.",
   },
   {
-    q: "Чем NuclearHazard отличается от RotorHazard?",
-    a: "NuclearHazard — развитие идеи RotorHazard с улучшенной точностью и дополнительными функциями. Atom — компактная версия для небольших трасс, полная — для официальных соревнований.",
+    q: "Сколько пилотов поддерживает система?",
+    a: "До 16 пилотов одновременно. Количество приёмников RX5808 зависит от конфигурации сборки — по одному на каждые ворота трассы.",
   },
   {
-    q: "Сколько ворот поддерживает система?",
-    a: "RotorHazard поддерживает до 8 ворот одновременно. Для большего количества можно каскадировать несколько систем.",
+    q: "Нужен ли интернет для работы?",
+    a: "Нет. Система полностью автономна и работает в локальной сети без подключения к интернету. Веб-интерфейс открывается прямо с Raspberry Pi.",
   },
   {
-    q: "Нужны ли специальные знания для сборки?",
-    a: "Базовые навыки пайки и работы с Linux. Мы предоставляем подробную инструкцию. Если не хотите возиться — берите собранную плату или комплект под ключ.",
+    q: "Нужно ли что-то устанавливать на дрон?",
+    a: "Ничего. Система определяет пролёт дрона по сигналу стандартного FPV видеопередатчика, который уже установлен на любом гоночном дроне.",
   },
   {
-    q: "Какая точность хронометража?",
-    a: "Точность до 1 мс. Система работает в реальном времени и показывает результаты сразу на экране.",
+    q: "Работает ли с HD-передатчиками (DJI, Avatar)?",
+    a: "Да. RotorHazard поддерживает как аналоговые, так и цифровые HD-передатчики — DJI O3, Avatar и другие.",
   },
   {
-    q: "Совместима ли система с FPVTrackside/LiveTime?",
-    a: "Да, RotorHazard поддерживает интеграцию с популярными системами управления гонками через API.",
+    q: "Можно ли восстановить пропущенные круги?",
+    a: "Да. Функция marshaling позволяет восстановить пропущенные круги с полной точностью, просмотрев историю гонки. Ни один круг не будет потерян.",
+  },
+  {
+    q: "Есть ли поддержка live-стриминга?",
+    a: "Да. RotorHazard генерирует оверлеи и страницы результатов для использования с OBS, что позволяет вести профессиональные прямые трансляции соревнований.",
+  },
+  {
+    q: "Как откалибровать систему?",
+    a: "Калибровка автоматическая и адаптивная — система запоминает параметры каждого пилота. Достаточно один раз настроить пороговые значения перед гонкой.",
+  },
+  {
+    q: "Сколько времени занимает установка?",
+    a: "С комплектом «под ключ» — около 30 минут. С самостоятельной сборкой — 1-2 часа при наличии базовых технических навыков.",
+  },
+  {
+    q: "Совместима ли система с FPVTrackside и LiveTime?",
+    a: "Да. RotorHazard поддерживает интеграцию с популярными системами управления гонками через API и плагины.",
   },
 ];
 
@@ -72,7 +92,7 @@ export default function RotorHazardPage() {
           <p className="text-gray-300 text-lg leading-relaxed mb-6">
             <strong className="text-white">RotorHazard</strong> и <strong className="text-white">NuclearHazard</strong> —
             профессиональные системы хронометража для соревнований по FPV-гонкам дронов.
-            Работают на базе Raspberry Pi и видеоприёмников 5.8 ГГц.
+            Рекомендуется Raspberry Pi, но работает на любом устройстве с Python.
           </p>
           <ul className="grid sm:grid-cols-2 gap-2">
             {BENEFITS.map((item) => (
@@ -185,6 +205,39 @@ export default function RotorHazardPage() {
         {/* Контактная форма */}
         <section id="contact">
           <h2 className="text-2xl font-bold mb-6 text-white">Связаться / Заказать</h2>
+          {/* Contact info cards */}
+          <div className="grid sm:grid-cols-3 gap-4 mb-8">
+            <a
+              href="https://t.me/rdmfpv"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 bg-gray-900 border border-gray-800 hover:border-orange-500/50 rounded-xl px-5 py-4 transition-colors group"
+            >
+              <span className="text-2xl">✈️</span>
+              <div>
+                <div className="text-xs text-gray-500 mb-0.5">Telegram</div>
+                <div className="text-orange-400 font-semibold group-hover:text-orange-300 transition-colors">@rdmfpv</div>
+              </div>
+            </a>
+            <div className="flex items-center gap-3 bg-gray-900 border border-gray-800 rounded-xl px-5 py-4">
+              <span className="text-2xl">💳</span>
+              <div>
+                <div className="text-xs text-gray-500 mb-0.5">Оплата</div>
+                <div className="text-white text-sm">Перевод на карту, СБП</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 bg-gray-900 border border-gray-800 rounded-xl px-5 py-4">
+              <span className="text-2xl">📦</span>
+              <div>
+                <div className="text-xs text-gray-500 mb-0.5">Доставка</div>
+                <div className="text-white text-sm">СДЭК, Почта России, самовывоз (СПб)</div>
+              </div>
+            </div>
+          </div>
+          <p className="text-gray-400 text-sm mb-6">
+            Или заполните форму ниже — ответим в течение 24 часов.
+          </p>
+
           {sent ? (
             <div className="bg-green-900/20 border border-green-700/50 rounded-xl px-6 py-10 text-center">
               <div className="text-4xl mb-3">✅</div>
