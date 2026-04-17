@@ -1,89 +1,9 @@
 "use client";
 
 import { useState } from "react";
-
-const PRODUCTS = [
-  {
-    category: "RotorHazard",
-    items: [
-      {
-        name: "Собранная плата засечки RotorHazard",
-        price: 8000,
-        oldPrice: 14000,
-        description: "Только собранная плата. Для работы нужны: Raspberry Pi + microSD, приёмники RX5808 (1-8 шт.)",
-        link: "https://rdmfpv.ru/product/засечка-rotorhazard/",
-      },
-      {
-        name: "Печатная плата RotorHazard",
-        price: 1000,
-        oldPrice: 2000,
-        description: "Голая PCB плата для самостоятельной сборки засечки",
-        link: "https://rdmfpv.ru/product/плата-rotorhazard/",
-      },
-      {
-        name: "Комплект для сборки RotorHazard",
-        price: 4000,
-        oldPrice: 6000,
-        description: "Полный набор компонентов для самостоятельной сборки платы засечки",
-        link: "https://rdmfpv.ru/product/комплект-для-сборки-rotorhazard/",
-      },
-      {
-        name: "Карбоновый корпус для RotorHazard",
-        price: 2000,
-        oldPrice: 3000,
-        description: "Защитный корпус из карбона для платы засечки",
-        link: "https://rdmfpv.ru/product/карбоновый-корпус-для-rotorhazard/",
-      },
-      {
-        name: "Пластиковый корпус для засечки RotorHazard",
-        price: 1000,
-        oldPrice: 2000,
-        description: "Защитный корпус из пластика для платы засечки",
-        link: "https://rdmfpv.ru/product/пластиковый-корпус-для-засечки-rotorhazard/",
-      },
-      {
-        name: "Raspberry Pi 5 8GB (Комплект для RotorHazard)",
-        price: 9000,
-        oldPrice: 12000,
-        description: "Одноплатный компьютер для запуска RotorHazard. Включает microSD карту с предустановленным ПО",
-        link: "https://rdmfpv.ru/product/raspberry-pi-5-комплект/",
-      },
-      {
-        name: "Приемник RX5808 Boscam",
-        price: 2000,
-        oldPrice: 3000,
-        description: "Видеоприёмник 5.8 ГГц. Нужен 1 шт. на каждые ворота (до 8 шт. на систему)",
-        link: "https://rdmfpv.ru/product/приемник-rx5808/",
-      },
-    ],
-  },
-  {
-    category: "NuclearHazard",
-    items: [
-      {
-        name: "Засечка NuclearHazard Atom",
-        price: 3000,
-        oldPrice: 5000,
-        description: "Компактная предсобранная засечка. Подключить приёмники и Raspberry Pi — готово",
-        link: "https://rdmfpv.ru/product/засечка-nuclearhazard-atom/",
-      },
-      {
-        name: "Засечка NuclearHazard",
-        price: 12000,
-        oldPrice: 16000,
-        description: "Полноразмерная предсобранная заводская засечка на базе RotorHazard. До 8 приёмников",
-        link: "https://rdmfpv.ru/product/засечка-nuclearhazard/",
-      },
-      {
-        name: 'Комплект системы управления мероприятием RotorHazard «под ключ»',
-        price: 38500,
-        oldPrice: 45000,
-        description: "Всё что нужно для запуска соревнований: плата + Raspberry Pi + корпус + приёмники + инструкция",
-        link: "https://rdmfpv.ru/product/комплект-системы-управления-мероприятием/",
-      },
-    ],
-  },
-];
+import Image from "next/image";
+import Link from "next/link";
+import { PRODUCTS, formatPrice, discountPercent } from "@/lib/products";
 
 const BENEFITS = [
   "Управление мероприятием: самый быстрый круг, три круга подряд, командные гонки",
@@ -121,9 +41,7 @@ const FAQ = [
   },
 ];
 
-function formatPrice(price: number) {
-  return price.toLocaleString("ru-RU") + " ₽";
-}
+const CATEGORIES = ["RotorHazard", "NuclearHazard"] as const;
 
 export default function RotorHazardPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -169,52 +87,76 @@ export default function RotorHazardPage() {
         {/* Каталог */}
         <section>
           <h2 className="text-2xl font-bold mb-8 text-white">Товары и цены</h2>
-          {PRODUCTS.map((cat) => (
-            <div key={cat.category} className="mb-12">
-              <h3 className="text-lg font-semibold text-orange-400 mb-5 flex items-center gap-2">
-                <span className="w-1 h-5 bg-orange-500 rounded-full inline-block" />
-                {cat.category}
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {cat.items.map((item) => (
-                  <div
-                    key={item.name}
-                    className="bg-gray-900 border border-gray-800 rounded-xl p-5 flex flex-col gap-3 hover:border-gray-700 hover:bg-gray-900/80 transition-all"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <h4 className="font-semibold text-white text-sm leading-snug">{item.name}</h4>
-                      <span className="shrink-0 text-[10px] font-bold bg-orange-500/15 text-orange-400 border border-orange-500/25 rounded-full px-2 py-0.5 uppercase tracking-wide">
-                        Sale
-                      </span>
-                    </div>
-                    <p className="text-gray-400 text-xs leading-relaxed flex-1">{item.description}</p>
-                    <div className="flex items-end justify-between gap-2 mt-auto pt-2 border-t border-gray-800">
-                      <div>
-                        <span className="block text-gray-500 text-xs line-through">{formatPrice(item.oldPrice)}</span>
-                        <span className="text-orange-400 font-bold text-xl">{formatPrice(item.price)}</span>
+          {CATEGORIES.map((cat) => {
+            const items = PRODUCTS.filter((p) => p.category === cat);
+            return (
+              <div key={cat} className="mb-12">
+                <h3 className="text-lg font-semibold text-orange-400 mb-5 flex items-center gap-2">
+                  <span className="w-1 h-5 bg-orange-500 rounded-full inline-block" />
+                  {cat}
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {items.map((product) => {
+                    const discount = discountPercent(product.price, product.oldPrice);
+                    return (
+                      <div
+                        key={product.slug}
+                        className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden flex flex-col hover:border-gray-700 transition-all"
+                      >
+                        {/* Image */}
+                        <div className="relative w-full h-44 bg-gray-800">
+                          <Image
+                            src={product.image}
+                            alt={product.name}
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                          />
+                          {/* Badges */}
+                          <div className="absolute top-2 left-2 flex gap-1.5">
+                            <span className="text-[10px] font-bold bg-gray-900/80 text-orange-400 border border-orange-500/40 rounded-full px-2 py-0.5 uppercase tracking-wide backdrop-blur-sm">
+                              {cat}
+                            </span>
+                            <span className="text-[10px] font-bold bg-orange-500 text-white rounded-full px-2 py-0.5">
+                              -{discount}%
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-4 flex flex-col gap-2 flex-1">
+                          <h4 className="font-semibold text-white text-sm leading-snug">{product.name}</h4>
+                          <p className="text-gray-400 text-xs leading-relaxed flex-1">{product.shortDesc}</p>
+
+                          {/* Price */}
+                          <div className="pt-2 border-t border-gray-800 flex items-end justify-between gap-2 mt-auto">
+                            <div>
+                              <span className="block text-gray-500 text-xs line-through">{formatPrice(product.oldPrice)}</span>
+                              <span className="text-orange-400 font-bold text-xl">{formatPrice(product.price)}</span>
+                            </div>
+                            <div className="flex flex-col gap-1.5 items-end">
+                              <Link
+                                href={`/rotorhazard/${product.slug}`}
+                                className="text-xs text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 rounded-lg px-3 py-1.5 transition-colors"
+                              >
+                                Подробнее
+                              </Link>
+                              <a
+                                href="#contact"
+                                className="text-xs bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg px-3 py-1.5 transition-colors"
+                              >
+                                Заказать
+                              </a>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex flex-col gap-1.5 items-end">
-                        <a
-                          href={item.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 rounded-lg px-3 py-1.5 transition-colors"
-                        >
-                          Подробнее
-                        </a>
-                        <a
-                          href="#contact"
-                          className="text-xs bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg px-3 py-1.5 transition-colors"
-                        >
-                          Заказать
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </section>
 
         {/* FAQ */}
