@@ -176,6 +176,19 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-zinc-950 flex flex-col items-center py-8 px-6 gap-3 select-none">
 
+      {/* Navigation */}
+      <nav className="w-full flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1 mb-1">
+        <span className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-orange-500/15 text-orange-400 border border-orange-500/25 text-xs font-semibold tracking-wide">
+          <span>⏱️</span> Таймер
+        </span>
+        <a
+          href="/rotorhazard"
+          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition text-xs font-medium tracking-wide"
+        >
+          <span>📡</span> RotorHazard
+        </a>
+      </nav>
+
       {/* Header */}
       <div className="w-full flex items-center justify-between">
         <p className="text-xs text-zinc-600 uppercase tracking-[0.2em]">FPV Timer</p>
