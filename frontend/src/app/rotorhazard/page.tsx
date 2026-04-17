@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { PRODUCTS, formatPrice, discountPercent } from "@/lib/products";
@@ -11,7 +10,7 @@ const BENEFITS = [
   "Полная запись статистики полёта, корректировки в любой момент",
   "Поддержка LED-панели для визуализации",
   "На дрон ничего устанавливать не нужно",
-  "До 8 пилотов в одном заезде, общее число пилотов на событии не ограничено, точность до 1 мс",
+  "До 8 пилотов в одном заезде (8 приёмников), общее число участников на событии не ограничено",
   "🌐 Работает без интернета — полностью в локальной сети",
   "📡 Поддержка HD-передатчиков DJI и Avatar",
   "🔄 Восстановление пропущенных кругов (marshaling)",
@@ -199,7 +198,7 @@ export default function RotorHazardPage() {
           <h2 className="text-2xl font-bold mb-6 text-white">Связаться / Заказать</h2>
           <div className="flex flex-col items-center gap-4 py-8">
             <a
-              href="https://t.me/cubedny"
+              href="https://t.me/rdmfpv"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-3 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white font-bold text-xl px-10 py-5 rounded-2xl transition-colors shadow-lg shadow-orange-500/20"
