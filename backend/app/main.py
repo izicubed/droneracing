@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.routers import auth
-from app.routers import pilots, sessions, admin
+from app.routers import pilots, sessions, admin, results
 from app.websockets.timer import timer_ws_endpoint
 
 app = FastAPI(title="Drone Racing API", version="0.1.0")
@@ -21,6 +21,7 @@ app.include_router(auth.router)
 app.include_router(pilots.router)
 app.include_router(sessions.router)
 app.include_router(admin.router)
+app.include_router(results.router)
 
 
 @app.exception_handler(Exception)
