@@ -40,7 +40,7 @@ export const PRODUCTS: Product[] = [
     category: "RotorHazard",
     price: 1000,
     oldPrice: 2000,
-    image: "/products/nh-board.jpg",
+    image: "/products/rh-pcb.jpg",
     shortDesc: "Голая PCB плата для самостоятельной сборки",
     features: [
       "Оригинальная схемотехника RotorHazard",
@@ -94,7 +94,7 @@ export const PRODUCTS: Product[] = [
     category: "RotorHazard",
     price: 1000,
     oldPrice: 2000,
-    image: "/products/carbon-case.png",
+    image: "/products/rh-plastic-case.jpg",
     shortDesc: "Защитный корпус из пластика",
     features: [
       "Лёгкий пластик",
@@ -110,7 +110,7 @@ export const PRODUCTS: Product[] = [
     category: "RotorHazard",
     price: 9000,
     oldPrice: 12000,
-    image: "/products/kit-assembly.jpg",
+    image: "/products/raspberry-pi-5.jpg",
     shortDesc: "Одноплатный компьютер с предустановленным ПО",
     features: [
       "Raspberry Pi 5 8GB RAM",
@@ -126,7 +126,7 @@ export const PRODUCTS: Product[] = [
     category: "RotorHazard",
     price: 2000,
     oldPrice: 3000,
-    image: "/products/kit-full.jpg",
+    image: "/products/rx5808.jpg",
     shortDesc: "Видеоприёмник 5.8 ГГц для ворот",
     features: [
       "Диапазон 5.8 ГГц",
@@ -159,9 +159,9 @@ export const PRODUCTS: Product[] = [
     slug: "nh-full",
     name: "Засечка NuclearHazard",
     category: "NuclearHazard",
-    price: 12000,
+    price: 6000,
     oldPrice: 16000,
-    image: "/products/nh-board.jpg",
+    image: "/products/nh-full.jpg",
     shortDesc: "Полноразмерная предсобранная заводская засечка",
     features: [
       "Предсобранная на заводе",
@@ -178,21 +178,21 @@ export const PRODUCTS: Product[] = [
   {
     slug: "rh-turnkey",
     name: "Комплект системы RotorHazard «под ключ»",
-    category: "NuclearHazard",
+    category: "RotorHazard",
     price: 38500,
     oldPrice: 45000,
     image: "/products/kit-full.jpg",
-    shortDesc: "Всё для запуска соревнований — в одном комплекте",
+    shortDesc: "Всё для запуска мероприятия — в одном комплекте",
     features: [
-      "Плата NuclearHazard",
+      "Плата RotorHazard / совместимая засечка",
       "Raspberry Pi 5 8GB с ПО",
       "Корпус",
       "Приёмники RX5808",
       "Инструкция по запуску",
-      "Готово к соревнованиям",
+      "Готово к мероприятию",
     ],
     description:
-      "Полный комплект для проведения FPV соревнований. Включает всё необходимое: плату NuclearHazard, Raspberry Pi 5 с предустановленным ПО, корпус, приёмники и подробную инструкцию.",
+      "Полный комплект для проведения FPV мероприятия. Включает всё необходимое: плату RotorHazard / совместимую засечку, Raspberry Pi 5 с предустановленным ПО, корпус, приёмники и подробную инструкцию.",
   },
 ];
 
