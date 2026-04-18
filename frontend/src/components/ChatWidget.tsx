@@ -9,7 +9,7 @@ interface ChatMessage {
   created_at: string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = "";
 
 export function ChatWidget() {
   const [open, setOpen] = useState(false);
@@ -51,8 +51,18 @@ export function ChatWidget() {
   }, [open, conversationId, pollMessages]);
 
   const handleSend = async () => {
-    if (!input.trim() || !conversationId) return;
+    if (!input.trim() || !conversationId || loading) return;
 
+    const text = input.trim();
+    const optimisticMessage: ChatMessage = {
+      id: Date.now(),
+      sender: "user",
+      text,
+      created_at: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, optimisticMessage]);
+    setInput("");
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/api/support/message`, {
@@ -60,16 +70,18 @@ export function ChatWidget() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           conversation_id: conversationId,
-          text: input,
+          text,
         }),
       });
 
       if (res.ok) {
-        setInput("");
         await pollMessages();
+      } else {
+        setMessages((prev) => prev.filter((msg) => msg.id !== optimisticMessage.id));
       }
     } catch (e) {
       console.error("Send error:", e);
+      setMessages((prev) => prev.filter((msg) => msg.id !== optimisticMessage.id));
     }
     setLoading(false);
   };
