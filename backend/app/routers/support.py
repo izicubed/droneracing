@@ -12,6 +12,7 @@ from app.models.conversation import Conversation
 from app.models.lead import Lead
 from app.models.message import Message
 from app.services.support_service import process_support_message
+from app.services.lead_parser import parse_lead_fields, merge_lead_fields
 
 router = APIRouter(prefix="/api/support", tags=["support"])
 
@@ -94,18 +95,38 @@ async def send_message(body: SendMessageRequest, db: AsyncSession = Depends(get_
     )
     db.add(andrey_msg)
 
-    # Check if lead keywords present — create/update lead
+    # Parse lead fields from user message
+    parsed = parse_lead_fields(body.text)
+
+    # Determine if we should create/update a lead
     text_lower = body.text.lower()
-    if any(kw in text_lower for kw in LEAD_KEYWORDS):
-        result = await db.execute(select(Lead).where(Lead.conversation_id == body.conversation_id))
-        lead = result.scalar_one_or_none()
-        if lead is None:
+    has_lead_keywords = any(kw in text_lower for kw in LEAD_KEYWORDS)
+    has_contact_info = bool(parsed.phone or parsed.email or parsed.name)
+
+    result = await db.execute(select(Lead).where(Lead.conversation_id == body.conversation_id))
+    lead = result.scalar_one_or_none()
+
+    if lead is None:
+        if has_lead_keywords or has_contact_info:
             lead = Lead(
                 conversation_id=body.conversation_id,
-                email=body.user_email,
+                email=parsed.email or body.user_email,
+                phone=parsed.phone,
+                name=parsed.name,
+                product=parsed.product,
+                notes=parsed.notes,
                 status="new",
             )
             db.add(lead)
+    else:
+        # Merge any new fields extracted from this message
+        changed = merge_lead_fields(lead, parsed)
+        # Also pick up user_email from conversation if lead email still empty
+        if body.user_email and not lead.email:
+            lead.email = body.user_email
+            changed = True
+        if changed:
+            lead.updated_at = datetime.utcnow()
 
     await db.commit()
     await db.refresh(andrey_msg)

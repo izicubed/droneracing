@@ -1,7 +1,17 @@
+import logging
+
 import httpx
+
 from app.config import settings
 
+logger = logging.getLogger(__name__)
+
 KB_PATH = "/home/admin/obsidian/RotorHazard_Support"
+
+_FALLBACK = (
+    "Андрей временно отвечает в базовом режиме — уточните ваш вопрос "
+    "или напишите напрямую @cubedny 🙏"
+)
 
 
 def load_kb() -> str:
@@ -12,15 +22,22 @@ def load_kb() -> str:
             with open(f"{KB_PATH}/{filename}", encoding="utf-8") as f:
                 parts.append(f"### {filename}\n\n{f.read()}")
         except FileNotFoundError:
-            pass
+            logger.debug("KB file not found: %s/%s", KB_PATH, filename)
     return "\n\n---\n\n".join(parts)
 
 
 async def process_support_message(message_text: str) -> str:
     """
-    Process client message via Claude through OpenRouter.
-    Returns Andrey's response.
+    Process client message via LLM through OpenRouter.
+    Returns Andrey's response, or a fallback string on any failure.
     """
+    if not settings.openrouter_api_key:
+        logger.warning(
+            "OPENROUTER_API_KEY is not set — returning fallback response. "
+            "Set it via the OPENROUTER_API_KEY environment variable."
+        )
+        return _FALLBACK
+
     kb_content = load_kb()
 
     system_prompt = f"""Ты Андрей Мещеряков, техническая поддержка RotorHazard и NuclearHazard.
@@ -37,27 +54,44 @@ async def process_support_message(message_text: str) -> str:
 - Будь вежлив, профессионален, кратко
 - Используй эмодзи когда уместно (только русский текст + эмодзи)"""
 
-    if not settings.openrouter_api_key:
-        return "Привет! 👋 Я Андрей. Чем могу помочь с RotorHazard?"
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {settings.openrouter_api_key}",
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": "https://droneracing.vercel.app",
+                    "X-Title": "RotorHazard Support",
+                },
+                json={
+                    "model": "gpt-5.4",
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": message_text},
+                    ],
+                    "max_tokens": 512,
+                },
+            )
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        resp = await client.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {settings.openrouter_api_key}",
-                "Content-Type": "application/json",
-                "HTTP-Referer": "https://droneracing.vercel.app",
-                "X-Title": "RotorHazard Support",
-            },
-            json={
-                "model": "gpt-5.4",
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": message_text},
-                ],
-                "max_tokens": 512,
-            },
-        )
-        resp.raise_for_status()
+        if resp.status_code != 200:
+            snippet = resp.text[:300]
+            logger.error(
+                "OpenRouter returned HTTP %d. Response: %s",
+                resp.status_code,
+                snippet,
+            )
+            return _FALLBACK
+
         data = resp.json()
         return data["choices"][0]["message"]["content"]
+
+    except httpx.TimeoutException:
+        logger.error("OpenRouter request timed out after 30s")
+        return _FALLBACK
+    except httpx.RequestError as exc:
+        logger.error("OpenRouter network error: %s", exc)
+        return _FALLBACK
+    except Exception as exc:
+        logger.error("Unexpected error calling OpenRouter: %s", exc, exc_info=True)
+        return _FALLBACK

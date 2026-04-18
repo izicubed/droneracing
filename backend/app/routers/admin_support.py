@@ -59,6 +59,12 @@ async def logout(response: Response, admin_token: Optional[str] = Cookie(default
     return {"ok": True}
 
 
+@router.get("/session")
+async def check_session(_: None = Depends(_require_admin)):
+    """Validate admin session — returns 200 if cookie is valid, 401 otherwise."""
+    return {"ok": True}
+
+
 # ── Leads ─────────────────────────────────────────────────────────────────────
 
 @router.get("/leads")
