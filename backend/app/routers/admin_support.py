@@ -1,6 +1,8 @@
+import base64
 import hashlib
-import secrets
-from datetime import datetime
+import hmac
+import json
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
@@ -16,12 +18,43 @@ from app.models.message import Message
 
 router = APIRouter(prefix="/api/admin", tags=["admin-support"])
 
-# Simple in-memory token store (good enough for single-instance MVP)
-_valid_tokens: set[str] = set()
+
+def _token_secret() -> bytes:
+    return hashlib.sha256(settings.admin_password.encode("utf-8")).digest()
+
+
+def _issue_admin_token(email: str) -> str:
+    payload = {
+        "email": email,
+        "exp": int((datetime.now(timezone.utc) + timedelta(days=7)).timestamp()),
+    }
+    payload_b64 = base64.urlsafe_b64encode(
+        json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    ).decode("ascii")
+    sig = hmac.new(_token_secret(), payload_b64.encode("utf-8"), hashlib.sha256).hexdigest()
+    return f"{payload_b64}.{sig}"
+
+
+def _validate_admin_token(token: str | None) -> bool:
+    if not token or "." not in token:
+        return False
+    try:
+        payload_b64, sig = token.rsplit(".", 1)
+        expected = hmac.new(_token_secret(), payload_b64.encode("utf-8"), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(sig, expected):
+            return False
+        payload = json.loads(base64.urlsafe_b64decode(payload_b64.encode("ascii")))
+        if payload.get("email") != ADMIN_EMAIL:
+            return False
+        if int(payload.get("exp", 0)) < int(datetime.now(timezone.utc).timestamp()):
+            return False
+        return True
+    except Exception:
+        return False
 
 
 def _require_admin(admin_token: Optional[str] = Cookie(default=None)) -> None:
-    if not admin_token or admin_token not in _valid_tokens:
+    if not _validate_admin_token(admin_token):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
@@ -39,8 +72,7 @@ class LoginRequest(BaseModel):
 async def login(body: LoginRequest, response: Response):
     if body.email != ADMIN_EMAIL or body.password != settings.admin_password:
         raise HTTPException(status_code=401, detail="Неверный email или пароль")
-    token = secrets.token_hex(32)
-    _valid_tokens.add(token)
+    token = _issue_admin_token(body.email)
     response.set_cookie(
         key="admin_token",
         value=token,
@@ -52,9 +84,7 @@ async def login(body: LoginRequest, response: Response):
 
 
 @router.post("/logout")
-async def logout(response: Response, admin_token: Optional[str] = Cookie(default=None)):
-    if admin_token and admin_token in _valid_tokens:
-        _valid_tokens.discard(admin_token)
+async def logout(response: Response):
     response.delete_cookie("admin_token")
     return {"ok": True}
 
