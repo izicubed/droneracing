@@ -19,6 +19,7 @@ export function ChatWidget() {
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressPollRef = useRef(false);
 
   useEffect(() => {
     if (!conversationId) {
@@ -27,7 +28,7 @@ export function ChatWidget() {
   }, [conversationId]);
 
   const pollMessages = useCallback(async () => {
-    if (!conversationId) return;
+    if (!conversationId || suppressPollRef.current) return;
     try {
       const res = await fetch(`${API_URL}/api/support/conversation/${conversationId}`);
       if (res.ok) {
@@ -75,6 +76,13 @@ export function ChatWidget() {
       });
 
       if (res.ok) {
+        const data = await res.json();
+        const replyText: string = data.andrey_response ?? "";
+        // Delay proportional to reply length: ~12ms/char, clamped to 1.2–3.5s
+        const delay = Math.min(Math.max(1200, replyText.length * 12), 3500);
+        suppressPollRef.current = true;
+        await new Promise<void>((resolve) => setTimeout(resolve, delay));
+        suppressPollRef.current = false;
         await pollMessages();
       } else {
         setMessages((prev) => prev.filter((msg) => msg.id !== optimisticMessage.id));

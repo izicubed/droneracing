@@ -77,6 +77,6 @@ CATALOG = [
         "category": "RotorHazard",
         "price": 38500,
         "old_price": 45000,
-        "short_desc": "Готовый комплект для клуба или трассы",
+        "short_desc": "Готовый комплект для клуба или мероприятия",
     },
 ]
