@@ -4,6 +4,7 @@ import re
 import httpx
 
 from app.config import settings
+from app.services.product_catalog import CATALOG
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +45,8 @@ def load_product_catalog() -> list[dict]:
         with open(PRODUCTS_TS_PATH, encoding="utf-8") as f:
             content = f.read()
     except FileNotFoundError:
-        logger.warning("products.ts not found at %s", PRODUCTS_TS_PATH)
-        return []
+        logger.warning("products.ts not found at %s, using embedded catalog", PRODUCTS_TS_PATH)
+        return CATALOG
 
     # Each product object is a { ... } block that contains a 'slug:' field.
     # We split on top-level braces by scanning character by character.
@@ -81,7 +82,7 @@ def load_product_catalog() -> list[dict]:
                         )
                 start = -1
 
-    return products
+    return products or CATALOG
 
 
 def _format_rub(price: int) -> str:
