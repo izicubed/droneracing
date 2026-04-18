@@ -46,9 +46,9 @@ def _clean_reply(text: str) -> str:
 
 
 def load_kb() -> str:
-    """Load knowledge base from FAQ.md and Products.md."""
+    """Load knowledge base from FAQ.md, Products.md and Price_List.md."""
     parts = []
-    for filename in ("FAQ.md", "Products.md"):
+    for filename in ("FAQ.md", "Products.md", "Price_List.md"):
         try:
             with open(f"{KB_PATH}/{filename}", encoding="utf-8") as f:
                 parts.append(f"### {filename}\n\n{f.read()}")
@@ -83,6 +83,12 @@ async def process_support_message(message_text: str) -> str:
 - Если речь о покупке: спрашивай только имя и телефон, больше ничего.
 - Не перечисляй всё подряд — назови главное и дай клиенту спросить сам.
 - Пиши как человек, не как бот.
+
+ЦЕНЫ:
+- Если клиент спрашивает цену — называй конкретную цену из базы знаний (Price_List.md или Products.md).
+- Если цена на товар известна — называй её прямо, без расплывчатости ("около", "примерно", "зависит от").
+- Не выдумывай цены. Бери только из базы знаний.
+- Можно сразу назвать цену и старую цену, чтобы показать скидку.
 
 КАК ТЫ ПОМОГАЕШЬ:
 Помогаешь выбрать комплект, разобраться с настройкой, совместимостью, установкой, прошивкой, доставкой.
