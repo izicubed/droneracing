@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PRODUCTS, getProductBySlug, formatPrice, discountPercent } from "@/lib/products";
 import OrderForm from "./OrderForm";
+import ProductGallery from "./ProductGallery";
 
 export function generateStaticParams() {
   return PRODUCTS.map((p) => ({ slug: p.slug }));
@@ -35,24 +36,12 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
           <div className="grid md:grid-cols-5 gap-8 items-start">
             {/* Image — 60% */}
             <div className="md:col-span-3">
-              <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-gray-800 border border-gray-800">
-                <Image
-                  src={product.image}
-                  alt={product.name}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 768px) 100vw, 60vw"
-                  priority
-                />
-                <div className="absolute top-3 left-3 flex gap-2">
-                  <span className="text-xs font-bold bg-gray-900/80 text-orange-400 border border-orange-500/40 rounded-full px-2.5 py-1 uppercase tracking-wide backdrop-blur-sm">
-                    {product.category}
-                  </span>
-                  <span className="text-xs font-bold bg-orange-500 text-white rounded-full px-2.5 py-1">
-                    -{discount}%
-                  </span>
-                </div>
-              </div>
+              <ProductGallery
+                images={product.images && product.images.length > 0 ? product.images : [product.image]}
+                alt={product.name}
+                category={product.category}
+                discount={discount}
+              />
             </div>
 
             {/* Info — 40% */}

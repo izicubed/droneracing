@@ -5,6 +5,7 @@ export type Product = {
   price: number;
   oldPrice: number;
   image: string;
+  images?: string[];
   shortDesc: string;
   description: string;
   features: string[];
@@ -76,7 +77,8 @@ export const PRODUCTS: Product[] = [
     category: "RotorHazard",
     price: 2000,
     oldPrice: 3000,
-    image: "/products/carbon-case.png",
+    image: "/products/rh-carbon-case-1.jpg",
+    images: ["/products/rh-carbon-case-1.jpg", "/products/rh-carbon-case-2.jpg"],
     shortDesc: "Защитный корпус из карбона",
     features: [
       "Лёгкий и прочный карбон",
