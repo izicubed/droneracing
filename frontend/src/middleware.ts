@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const BACKEND_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
 export async function middleware(request: NextRequest) {
   const adminToken = request.cookies.get("admin_token")?.value;
   const loginUrl = new URL("/admin/login", request.url);
@@ -15,7 +12,7 @@ export async function middleware(request: NextRequest) {
 
   // Validate token against backend session endpoint
   try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/session`, {
+    const res = await fetch(new URL("/api/admin/session", request.url), {
       method: "GET",
       headers: {
         Cookie: `admin_token=${adminToken}`,
