@@ -1,4 +1,5 @@
 import logging
+import re
 
 import httpx
 
@@ -9,9 +10,39 @@ logger = logging.getLogger(__name__)
 KB_PATH = "/home/admin/obsidian/RotorHazard_Support"
 
 _FALLBACK = (
-    "Здравствуйте! Помогу с RotorHazard и NuclearHazard. "
-    "Подскажите, вас интересует подбор комплекта, настройка системы или решение конкретной проблемы?"
+    "Здравствуйте. Помогу с RotorHazard и NuclearHazard. "
+    "Подскажите, вам нужен готовый комплект, отдельные модули или помощь с настройкой?"
 )
+
+_MAX_REPLY_LEN = 800
+
+
+def _clean_reply(text: str) -> str:
+    """Strip markdown artifacts and trim overly long replies."""
+    # Remove bold/italic markers
+    text = re.sub(r"\*{1,3}(.+?)\*{1,3}", r"\1", text)
+    # Remove headers (### Header)
+    text = re.sub(r"^#{1,6}\s+", "", text, flags=re.MULTILINE)
+    # Remove leading list markers (- item, * item, 1. item)
+    text = re.sub(r"^\s*[-*]\s+", "", text, flags=re.MULTILINE)
+    text = re.sub(r"^\s*\d+\.\s+", "", text, flags=re.MULTILINE)
+    # Collapse multiple blank lines into one
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    text = text.strip()
+
+    if len(text) <= _MAX_REPLY_LEN:
+        return text
+
+    # Trim to last sentence boundary within the limit
+    trimmed = text[:_MAX_REPLY_LEN]
+    # Try to cut at the last sentence-ending punctuation
+    cut = max(trimmed.rfind(". "), trimmed.rfind("! "), trimmed.rfind("? "))
+    if cut > _MAX_REPLY_LEN // 2:
+        text = trimmed[: cut + 1].strip()
+    else:
+        text = trimmed.rstrip() + "…"
+
+    return text
 
 
 def load_kb() -> str:
@@ -40,21 +71,27 @@ async def process_support_message(message_text: str) -> str:
 
     kb_content = load_kb()
 
-    system_prompt = f"""Ты Андрей, специалист по поддержке и консультант по оборудованию RotorHazard и NuclearHazard.
+    system_prompt = f"""Ты Андрей — живой специалист поддержки по оборудованию RotorHazard и NuclearHazard. Общаешься с клиентами в чате.
 
-## База знаний (продукты и FAQ):
+ПРАВИЛА СТИЛЯ — обязательны, без исключений:
+- Отвечай только по-русски.
+- Коротко: 2–4 предложения в обычном ответе, максимум 5.
+- Никакого markdown: никаких **, ##, *курсива*, списков с дефисами, нумерации.
+- Никакого канцелярита ("в соответствии с", "на данный момент", "вышеуказанный").
+- Не начинай с "Конечно!", "Отличный вопрос!", "Я понимаю".
+- После ответа — максимум один уточняющий вопрос, и то только если нужен.
+- Если речь о покупке: спрашивай только имя и телефон, больше ничего.
+- Не перечисляй всё подряд — назови главное и дай клиенту спросить сам.
+- Пиши как человек, не как бот.
 
-{kb_content}
+КАК ТЫ ПОМОГАЕШЬ:
+Помогаешь выбрать комплект, разобраться с настройкой, совместимостью, установкой, прошивкой, доставкой.
+Если клиент готов к покупке — собери имя и телефон, остальное уточнишь сам.
+Внутренние процессы и инструменты не раскрывай.
 
-## Как ты работаешь:
-- Общаешься только по-русски, вежливо и по делу
-- Помогаешь подобрать комплект, разобраться с настройкой и совместимостью оборудования
-- Отвечаешь на вопросы по установке, прошивке, доставке
-- Не раскрываешь внутреннюю кухню, инструменты и процессы компании
-- Если клиент готов к покупке или хочет уточнить детали — аккуратно предложи оформить заявку
-- Для оформления заявки собери: имя, номер телефона, что интересует, любые уточнения
-- Email не запрашивай первым — телефона достаточно
-- Отвечай кратко и по делу, используй эмодзи умеренно"""
+БАЗА ЗНАНИЙ:
+
+{kb_content}"""
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -86,7 +123,8 @@ async def process_support_message(message_text: str) -> str:
             return _FALLBACK
 
         data = resp.json()
-        return data["choices"][0]["message"]["content"]
+        raw = data["choices"][0]["message"]["content"]
+        return _clean_reply(raw)
 
     except httpx.TimeoutException:
         logger.error("OpenRouter request timed out after 30s")
