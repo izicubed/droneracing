@@ -17,7 +17,6 @@ export function ChatWidget() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -61,7 +60,6 @@ export function ChatWidget() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           conversation_id: conversationId,
-          user_email: email || undefined,
           text: input,
         }),
       });
@@ -95,7 +93,13 @@ export function ChatWidget() {
     <div className="fixed bottom-4 right-4 w-96 h-[28rem] bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl flex flex-col z-50">
       {/* Header */}
       <div className="bg-gradient-to-r from-yellow-500 to-yellow-400 text-gray-950 p-4 rounded-t-2xl flex items-center justify-between flex-shrink-0">
-        <div className="font-bold">🛠️ Андрей Мещеряков</div>
+        <div className="flex items-center gap-2">
+          <span className="font-bold">🛠️ Андрей Мещеряков</span>
+          <span className="flex items-center gap-1 text-xs font-medium opacity-80">
+            <span className="w-2 h-2 rounded-full bg-green-600 inline-block" />
+            онлайн
+          </span>
+        </div>
         <button
           onClick={() => setOpen(false)}
           className="text-xl font-bold cursor-pointer hover:opacity-70"
@@ -108,7 +112,7 @@ export function ChatWidget() {
       <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
         {messages.length === 0 && (
           <div className="text-gray-400 text-sm">
-            Привет! 👋 Я Андрей. Помогу выбрать оборудование или отвечу на вопросы о RotorHazard.
+            Здравствуйте! Я Андрей, помогу с RotorHazard и NuclearHazard. Могу подсказать по комплектам, настройке и совместимости. Что именно вас интересует?
           </div>
         )}
         {messages.map((msg) => (
@@ -137,24 +141,11 @@ export function ChatWidget() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Email input (shown before first message) */}
-      {messages.length === 0 && !email && (
-        <div className="px-4 pb-2 flex-shrink-0">
-          <input
-            type="email"
-            placeholder="Твой email (опционально)"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 text-sm placeholder-gray-500"
-          />
-        </div>
-      )}
-
       {/* Input */}
       <div className="border-t border-gray-700 p-3 flex gap-2 flex-shrink-0">
         <input
           type="text"
-          placeholder="Напиши сообщение..."
+          placeholder="Напишите ваш вопрос..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
