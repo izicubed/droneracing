@@ -49,15 +49,12 @@ _EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
 # ── Name ───────────────────────────────────────────────────────────────────────
 
 # Explicit introduction patterns (Russian + English)
-_NAME_INTRO_RE = re.compile(
-    r"(?:"
-    r"меня зовут|зовут меня|я\s+—?\s*|имя\s*[:\-]?\s*"
-    r"|this is\s+|my name is\s+|i'?m\s+"
-    r")"
-    r"([А-ЯЁа-яёA-Za-z][А-ЯЁа-яёA-Za-z\u0400-\u04FF\-]{1,30}"
-    r"(?:\s+[А-ЯЁа-яёA-Za-z][А-ЯЁа-яёA-Za-z\u0400-\u04FF\-]{1,30}){0,2})",
-    re.IGNORECASE,
-)
+_NAME_PATTERNS = [
+    re.compile(r"(?:меня\s+зовут|зовут\s+меня)\s+([А-ЯЁA-Z][А-ЯЁа-яёA-Za-z\-]{1,30}(?:\s+[А-ЯЁA-Z][А-ЯЁа-яёA-Za-z\-]{1,30}){0,2})", re.IGNORECASE),
+    re.compile(r"(?:имя\s*[:\-]?\s*)([А-ЯЁA-Z][А-ЯЁа-яёA-Za-z\-]{1,30}(?:\s+[А-ЯЁA-Z][А-ЯЁа-яёA-Za-z\-]{1,30}){0,2})", re.IGNORECASE),
+    re.compile(r"(?:my\s+name\s+is|this\s+is|i'?m)\s+([A-Z][A-Za-z\-]{1,30}(?:\s+[A-Z][A-Za-z\-]{1,30}){0,2})", re.IGNORECASE),
+    re.compile(r"(?:^|[\s,.!?:;])я\s+([А-ЯЁ][А-ЯЁа-яё\-]{1,30}(?:\s+[А-ЯЁ][А-ЯЁа-яё\-]{1,30}){0,2})", re.IGNORECASE),
+]
 
 # Fallback: sequence of 1-3 Cyrillic words starting with uppercase
 _NAME_CYRILLIC_RE = re.compile(
@@ -117,12 +114,15 @@ def parse_lead_fields(text: str) -> ParsedLead:
             break
 
     # ── Name: explicit introduction first ─────────────────────────────────────
-    intro_m = _NAME_INTRO_RE.search(text)
-    if intro_m:
-        candidate = intro_m.group(1).strip()
-        if candidate not in _NAME_STOPWORDS:
+    for pattern in _NAME_PATTERNS:
+        intro_m = pattern.search(text)
+        if not intro_m:
+            continue
+        candidate = intro_m.group(1).strip(" ,.!?:;-")
+        if candidate and candidate not in _NAME_STOPWORDS:
             result.name = candidate
             logger.debug("lead_parser: name (intro)=%s", result.name)
+            break
 
     # ── Name: Cyrillic capitalized fallback ────────────────────────────────────
     if not result.name:
