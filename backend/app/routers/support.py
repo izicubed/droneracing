@@ -13,6 +13,7 @@ from app.models.lead import Lead
 from app.models.message import Message
 from app.services.support_service import process_support_message
 from app.services.lead_parser import parse_lead_fields, merge_lead_fields
+from app.services.lead_events import emit_lead_event
 
 router = APIRouter(prefix="/api/support", tags=["support"])
 
@@ -59,6 +60,7 @@ async def send_message(body: SendMessageRequest, db: AsyncSession = Depends(get_
 
     # Get or create conversation
     conv = await db.get(Conversation, body.conversation_id)
+    is_new_conversation = conv is None
     if conv is None:
         conv = Conversation(
             id=body.conversation_id,
@@ -67,6 +69,7 @@ async def send_message(body: SendMessageRequest, db: AsyncSession = Depends(get_
         )
         db.add(conv)
         await db.flush()
+        await emit_lead_event("new_conversation", {"conversation_id": body.conversation_id})
     elif body.user_email and not conv.user_email:
         conv.user_email = body.user_email
 
@@ -79,6 +82,10 @@ async def send_message(body: SendMessageRequest, db: AsyncSession = Depends(get_
     )
     db.add(user_msg)
     await db.flush()
+    await emit_lead_event("new_message", {
+        "conversation_id": body.conversation_id,
+        "text_preview": body.text[:120],
+    })
 
     # Get LLM response
     try:
@@ -113,11 +120,22 @@ async def send_message(body: SendMessageRequest, db: AsyncSession = Depends(get_
                 email=parsed.email or body.user_email,
                 phone=parsed.phone,
                 name=parsed.name,
+                telegram=parsed.telegram,
                 product=parsed.product,
+                order_summary=parsed.order_summary,
                 notes=parsed.notes,
+                source="website_chat",
                 status="new",
             )
             db.add(lead)
+            await db.flush()
+            await emit_lead_event("new_lead", {
+                "conversation_id": body.conversation_id,
+                "name": parsed.name,
+                "phone": parsed.phone,
+                "telegram": parsed.telegram,
+                "product": parsed.product,
+            })
     else:
         # Merge any new fields extracted from this message
         changed = merge_lead_fields(lead, parsed)

@@ -2,8 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PRODUCTS, getProductBySlug, formatPrice, discountPercent } from "@/lib/products";
-import OrderForm from "./OrderForm";
 import ProductGallery from "./ProductGallery";
+import { ChatWidget } from "@/components/ChatWidget";
 
 export function generateStaticParams() {
   return PRODUCTS.map((p) => ({ slug: p.slug }));
@@ -135,10 +135,22 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
           </section>
         )}
 
-        {/* Contact form */}
+        {/* Contact */}
         <section id="contact">
           <h2 className="text-2xl font-bold mb-6 text-white">Связаться / Заказать</h2>
-          <OrderForm />
+          <div className="flex flex-col items-center gap-4 py-8">
+            <a
+              href="https://t.me/rdmfpv"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-3 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white font-bold text-xl px-10 py-5 rounded-2xl transition-colors shadow-lg shadow-orange-500/20"
+            >
+              <span>✈️</span>
+              <span>Написать в Telegram</span>
+              <span>→</span>
+            </a>
+            <p className="text-gray-500 text-sm">Ответим в течение 24 часов</p>
+          </div>
         </section>
 
       </div>
@@ -146,6 +158,8 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
       <footer className="border-t border-gray-800 mt-16 px-6 py-6 text-center text-gray-600 text-sm">
         RotorHazard / NuclearHazard — системы хронометража для FPV гонок
       </footer>
+
+      <ChatWidget />
     </main>
   );
 }

@@ -1,6 +1,6 @@
 """
-Lead field parser: extracts name, phone, email, product, notes
-from free-form customer messages using regex + heuristics.
+Lead field parser: extracts name, phone, email, telegram, product,
+order_summary, notes from free-form customer messages using regex + heuristics.
 No external dependencies — stdlib re only.
 """
 
@@ -25,6 +25,16 @@ PRODUCT_KEYWORDS: dict[str, list[str]] = {
     "full": ["полный комплект", "full set", "full kit"],
 }
 
+# ── Order summary keywords ────────────────────────────────────────────────────
+
+# Phrases that signal the customer is describing what they want to order
+_ORDER_SIGNALS = [
+    "нужен", "нужна", "нужно", "хочу", "хотел", "хотела",
+    "интересует", "купить", "заказать", "заказ", "приобрести",
+    "комплект", "пилотов", "гонок", "трасс", "для соревнований",
+    "стартовый", "full set", "full kit",
+]
+
 # ── Phone ──────────────────────────────────────────────────────────────────────
 
 # Matches Russian/KZ mobile numbers: +7 or 8, then 10 digits with optional separators
@@ -45,6 +55,11 @@ _PHONE_RE = re.compile(
 # ── Email ──────────────────────────────────────────────────────────────────────
 
 _EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
+
+# ── Telegram username ──────────────────────────────────────────────────────────
+
+# Matches @username (Telegram rules: 5-32 chars, letters/digits/underscores)
+_TELEGRAM_RE = re.compile(r"@([a-zA-Z0-9_]{5,32})\b")
 
 # ── Name ───────────────────────────────────────────────────────────────────────
 
@@ -77,7 +92,9 @@ class ParsedLead:
     name: str | None = None
     phone: str | None = None
     email: str | None = None
+    telegram: str | None = None
     product: str | None = None
+    order_summary: str | None = None
     notes: str | None = None
 
 
@@ -105,6 +122,12 @@ def parse_lead_fields(text: str) -> ParsedLead:
         result.phone = digits
         logger.debug("lead_parser: phone=%s", result.phone)
 
+    # ── Telegram username ──────────────────────────────────────────────────────
+    tg_m = _TELEGRAM_RE.search(text)
+    if tg_m:
+        result.telegram = "@" + tg_m.group(1)
+        logger.debug("lead_parser: telegram=%s", result.telegram)
+
     # ── Product ────────────────────────────────────────────────────────────────
     text_lower = text.lower()
     for product_name, keywords in PRODUCT_KEYWORDS.items():
@@ -112,6 +135,13 @@ def parse_lead_fields(text: str) -> ParsedLead:
             result.product = product_name
             logger.debug("lead_parser: product=%s", result.product)
             break
+
+    # ── Order summary ──────────────────────────────────────────────────────────
+    # If message contains order signals, use the whole message as order_summary
+    if any(sig in text_lower for sig in _ORDER_SIGNALS):
+        # Trim to 500 chars to keep it concise
+        result.order_summary = text[:500].strip()
+        logger.debug("lead_parser: order_summary captured (%d chars)", len(result.order_summary))
 
     # ── Name: explicit introduction first ─────────────────────────────────────
     for pattern in _NAME_PATTERNS:
@@ -161,8 +191,14 @@ def merge_lead_fields(lead, parsed: ParsedLead) -> bool:
     if parsed.email and not lead.email:
         lead.email = parsed.email
         updated = True
+    if parsed.telegram and not lead.telegram:
+        lead.telegram = parsed.telegram
+        updated = True
     if parsed.product and not lead.product:
         lead.product = parsed.product
+        updated = True
+    if parsed.order_summary and not lead.order_summary:
+        lead.order_summary = parsed.order_summary
         updated = True
     if parsed.notes and not lead.notes:
         lead.notes = parsed.notes

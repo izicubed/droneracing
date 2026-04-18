@@ -37,8 +37,8 @@ function formatMs(ms: number) {
 const STATUS_LABELS: Record<string, string> = {
   new: "new",
   in_progress: "in progress",
-  completed: "completed",
-  rejected: "rejected",
+  qualified: "qualified",
+  closed: "closed",
 };
 
 // ---------------------------------------------------------------------------
@@ -156,6 +156,10 @@ function LeadsTab() {
   const [selected, setSelected] = useState<AdminLeadDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [editStatus, setEditStatus] = useState("");
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editTelegram, setEditTelegram] = useState("");
+  const [editOrderSummary, setEditOrderSummary] = useState("");
   const [editNotes, setEditNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -175,6 +179,10 @@ function LeadsTab() {
       const detail = await getAdminLead(lead.id);
       setSelected(detail);
       setEditStatus(detail.status);
+      setEditName(detail.name ?? "");
+      setEditPhone(detail.phone ?? "");
+      setEditTelegram(detail.telegram ?? "");
+      setEditOrderSummary(detail.order_summary ?? "");
       setEditNotes(detail.notes ?? "");
     } finally {
       setDetailLoading(false);
@@ -185,9 +193,28 @@ function LeadsTab() {
     if (!selected) return;
     setSaving(true);
     try {
-      await updateAdminLead(selected.id, { status: editStatus, notes: editNotes });
-      setLeads(prev => prev.map(l => l.id === selected.id ? { ...l, status: editStatus, notes: editNotes } : l));
-      setSelected(prev => prev ? { ...prev, status: editStatus, notes: editNotes } : prev);
+      const updated = await updateAdminLead(selected.id, {
+        status: editStatus,
+        name: editName || undefined,
+        phone: editPhone || undefined,
+        telegram: editTelegram || undefined,
+        order_summary: editOrderSummary || undefined,
+        notes: editNotes || undefined,
+      });
+      setLeads(prev => prev.map(l =>
+        l.id === selected.id
+          ? { ...l, status: updated.status, name: updated.name, phone: updated.phone, telegram: updated.telegram, order_summary: updated.order_summary, notes: updated.notes }
+          : l
+      ));
+      setSelected(prev => prev ? {
+        ...prev,
+        status: updated.status,
+        name: updated.name,
+        phone: updated.phone,
+        telegram: updated.telegram,
+        order_summary: updated.order_summary,
+        notes: updated.notes,
+      } : prev);
     } finally {
       setSaving(false);
     }
@@ -205,17 +232,17 @@ function LeadsTab() {
             onClick={() => handleSelectLead(lead)}
           >
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <p className="text-zinc-200 text-sm font-medium truncate">
-                  {lead.name ?? lead.phone ?? lead.conversation_id.slice(0, 8)}
+                  {lead.name ?? lead.phone ?? lead.telegram ?? lead.conversation_id.slice(0, 8)}
                 </p>
                 <span className="text-[9px] text-zinc-500 border border-zinc-700 rounded px-1 py-0.5 uppercase tracking-widest shrink-0">
                   {STATUS_LABELS[lead.status] ?? lead.status}
                 </span>
               </div>
-              <p className="text-zinc-600 text-xs mt-0.5">
-                {lead.phone ?? "no phone"}
-                {lead.product ? ` · ${lead.product}` : ""}
+              <p className="text-zinc-600 text-xs mt-0.5 truncate">
+                {[lead.phone, lead.telegram].filter(Boolean).join(" · ") || "no contact"}
+                {lead.order_summary ? ` · ${lead.order_summary.slice(0, 40)}…` : ""}
                 {" · "}
                 {formatDate(lead.created_at)}
               </p>
@@ -231,22 +258,48 @@ function LeadsTab() {
                 <p className="text-zinc-600 text-xs">Loading...</p>
               ) : (
                 <>
-                  {/* Fields */}
+                  {/* Read-only info */}
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                    <span className="text-zinc-600">Name</span>
-                    <span className="text-zinc-300">{selected.name ?? "—"}</span>
-                    <span className="text-zinc-600">Phone</span>
-                    <span className="text-zinc-300">{selected.phone ?? "—"}</span>
                     <span className="text-zinc-600">Email</span>
                     <span className="text-zinc-300">{selected.email ?? "—"}</span>
-                    <span className="text-zinc-600">Product</span>
-                    <span className="text-zinc-300">{selected.product ?? "—"}</span>
+                    <span className="text-zinc-600">Source</span>
+                    <span className="text-zinc-300">{selected.source}</span>
                   </div>
 
-                  {/* Status + Notes edit */}
+                  {/* Editable fields */}
                   <div className="space-y-2">
+                    {(
+                      [
+                        { label: "Name", value: editName, set: setEditName, placeholder: "Имя клиента" },
+                        { label: "Phone", value: editPhone, set: setEditPhone, placeholder: "+7..." },
+                        { label: "Telegram", value: editTelegram, set: setEditTelegram, placeholder: "@username" },
+                      ] as const
+                    ).map(({ label, value, set, placeholder }) => (
+                      <div key={label} className="flex items-center gap-2">
+                        <label className="text-zinc-600 text-xs w-16 shrink-0">{label}</label>
+                        <input
+                          type="text"
+                          value={value}
+                          onChange={e => set(e.target.value)}
+                          placeholder={placeholder}
+                          className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-200 focus:outline-none placeholder-zinc-600"
+                        />
+                      </div>
+                    ))}
+
+                    <div className="flex items-start gap-2">
+                      <label className="text-zinc-600 text-xs w-16 shrink-0 mt-1">Order</label>
+                      <textarea
+                        value={editOrderSummary}
+                        onChange={e => setEditOrderSummary(e.target.value)}
+                        rows={2}
+                        className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-200 focus:outline-none resize-none placeholder-zinc-600"
+                        placeholder="Состав заказа..."
+                      />
+                    </div>
+
                     <div className="flex items-center gap-2">
-                      <label className="text-zinc-600 text-xs w-12 shrink-0">Status</label>
+                      <label className="text-zinc-600 text-xs w-16 shrink-0">Status</label>
                       <select
                         value={editStatus}
                         onChange={e => setEditStatus(e.target.value)}
@@ -257,16 +310,18 @@ function LeadsTab() {
                         ))}
                       </select>
                     </div>
+
                     <div className="flex items-start gap-2">
-                      <label className="text-zinc-600 text-xs w-12 shrink-0 mt-1">Notes</label>
+                      <label className="text-zinc-600 text-xs w-16 shrink-0 mt-1">Notes</label>
                       <textarea
                         value={editNotes}
                         onChange={e => setEditNotes(e.target.value)}
                         rows={2}
-                        className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-200 focus:outline-none resize-none"
-                        placeholder="Internal notes..."
+                        className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-200 focus:outline-none resize-none placeholder-zinc-600"
+                        placeholder="Заметка менеджера..."
                       />
                     </div>
+
                     <div className="flex justify-end">
                       <button
                         onClick={handleSave}

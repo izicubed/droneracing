@@ -42,9 +42,16 @@ async def list_users(
     ]
 
 
+ALLOWED_STATUSES = {"new", "in_progress", "qualified", "closed"}
+
+
 class LeadUpdate(BaseModel):
-    status: str | None = None
+    name: str | None = None
+    phone: str | None = None
+    telegram: str | None = None
+    order_summary: str | None = None
     notes: str | None = None
+    status: str | None = None
 
 
 @router.get("/leads")
@@ -60,8 +67,11 @@ async def list_leads(
             "conversation_id": l.conversation_id,
             "name": l.name,
             "phone": l.phone,
+            "telegram": l.telegram,
             "email": l.email,
             "product": l.product,
+            "order_summary": l.order_summary,
+            "source": l.source,
             "status": l.status,
             "notes": l.notes,
             "created_at": l.created_at,
@@ -91,8 +101,11 @@ async def get_lead(
         "conversation_id": lead.conversation_id,
         "name": lead.name,
         "phone": lead.phone,
+        "telegram": lead.telegram,
         "email": lead.email,
         "product": lead.product,
+        "order_summary": lead.order_summary,
+        "source": lead.source,
         "status": lead.status,
         "notes": lead.notes,
         "created_at": lead.created_at,
@@ -115,12 +128,38 @@ async def update_lead(
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
     if body.status is not None:
+        if body.status not in ALLOWED_STATUSES:
+            raise HTTPException(status_code=422, detail=f"Invalid status. Allowed: {sorted(ALLOWED_STATUSES)}")
         lead.status = body.status
+    if body.name is not None:
+        lead.name = body.name
+    if body.phone is not None:
+        lead.phone = body.phone
+    if body.telegram is not None:
+        lead.telegram = body.telegram
+    if body.order_summary is not None:
+        lead.order_summary = body.order_summary
     if body.notes is not None:
         lead.notes = body.notes
+
+    from app.services.lead_events import emit_lead_event
+    await emit_lead_event("lead_updated", {
+        "lead_id": lead.id,
+        "conversation_id": lead.conversation_id,
+        "updated_fields": {k: v for k, v in body.model_dump().items() if v is not None},
+    })
+
     await db.commit()
     await db.refresh(lead)
-    return {"id": lead.id, "status": lead.status, "notes": lead.notes}
+    return {
+        "id": lead.id,
+        "name": lead.name,
+        "phone": lead.phone,
+        "telegram": lead.telegram,
+        "order_summary": lead.order_summary,
+        "status": lead.status,
+        "notes": lead.notes,
+    }
 
 
 @router.get("/users/{user_id}/sessions")

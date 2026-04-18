@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { PRODUCTS, formatPrice, discountPercent } from "@/lib/products";
+import { ChatWidget } from "@/components/ChatWidget";
 
 const BENEFITS = [
   "Управление мероприятием: самый быстрый круг, три круга подряд, командные гонки",
@@ -217,6 +218,8 @@ export default function RotorHazardPage() {
       <footer className="border-t border-gray-800 mt-16 px-6 py-6 text-center text-gray-600 text-sm">
         RotorHazard / NuclearHazard — системы хронометража для FPV гонок
       </footer>
+
+      <ChatWidget />
     </main>
   );
 }

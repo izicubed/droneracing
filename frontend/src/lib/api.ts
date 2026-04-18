@@ -68,8 +68,11 @@ export interface AdminLead {
   conversation_id: string;
   name: string | null;
   phone: string | null;
+  telegram: string | null;
   email: string | null;
   product: string | null;
+  order_summary: string | null;
+  source: string;
   status: string;
   notes: string | null;
   created_at: string;
@@ -103,7 +106,14 @@ export function getAdminLead(leadId: number): Promise<AdminLeadDetail> {
   return api.get(`/admin/leads/${leadId}`);
 }
 
-export function updateAdminLead(leadId: number, data: { status?: string; notes?: string }): Promise<{ id: number; status: string; notes: string | null }> {
+export function updateAdminLead(leadId: number, data: {
+  name?: string;
+  phone?: string;
+  telegram?: string;
+  order_summary?: string;
+  notes?: string;
+  status?: string;
+}): Promise<{ id: number; name: string | null; phone: string | null; telegram: string | null; order_summary: string | null; status: string; notes: string | null }> {
   const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
   return fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/admin/leads/${leadId}`, {
     method: "PATCH",
