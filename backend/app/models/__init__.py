@@ -5,6 +5,9 @@ from app.models.session import Session, Lap, Crash
 from app.models.battery import BatteryPack, PackUsage
 from app.models.timer import TimerConfig
 from app.models.event import Event, Heat, HeatPilot
+from app.models.conversation import Conversation
+from app.models.message import Message
+from app.models.lead import Lead
 
 __all__ = [
     "User", "Pilot", "Equipment",
@@ -12,4 +15,5 @@ __all__ = [
     "BatteryPack", "PackUsage",
     "TimerConfig",
     "Event", "Heat", "HeatPilot",
+    "Conversation", "Message", "Lead",
 ]

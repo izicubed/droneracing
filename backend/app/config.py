@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 43200  # 30 days
     refresh_token_expire_days: int = 30
     cors_origins: str = "http://localhost:3000"
+    admin_password: str = "K2tool_RH_admin_2026"
+    openrouter_api_key: str = ""
 
     @field_validator("database_url")
     @classmethod
