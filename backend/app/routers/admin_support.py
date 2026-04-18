@@ -27,14 +27,18 @@ def _require_admin(admin_token: Optional[str] = Cookie(default=None)) -> None:
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 
+ADMIN_EMAIL = "izicubed@gmail.com"
+
+
 class LoginRequest(BaseModel):
+    email: str
     password: str
 
 
 @router.post("/login")
 async def login(body: LoginRequest, response: Response):
-    if body.password != settings.admin_password:
-        raise HTTPException(status_code=401, detail="Неверный пароль")
+    if body.email != ADMIN_EMAIL or body.password != settings.admin_password:
+        raise HTTPException(status_code=401, detail="Неверный email или пароль")
     token = secrets.token_hex(32)
     _valid_tokens.add(token)
     response.set_cookie(

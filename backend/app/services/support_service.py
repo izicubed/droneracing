@@ -50,7 +50,7 @@ async def process_support_message(message_text: str) -> str:
                 "X-Title": "RotorHazard Support",
             },
             json={
-                "model": "openrouter/auto",
+                "model": "gpt-5.4",
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": message_text},
