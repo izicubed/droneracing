@@ -143,7 +143,7 @@ export const PRODUCTS: Product[] = [
     category: "NuclearHazard",
     price: 3000,
     oldPrice: 5000,
-    image: "/products/nh-atom.jpg",
+    image: "/products/nh-atom-new.jpg",
     shortDesc: "Компактная предсобранная засечка",
     features: [
       "Предсобранная на заводе",
