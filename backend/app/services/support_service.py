@@ -84,19 +84,60 @@ def load_product_catalog() -> list[dict]:
     return products
 
 
+def _format_rub(price: int) -> str:
+    return f"{price:,}₽".replace(",", "\u202f")
+
+
 def format_catalog(products: list[dict]) -> str:
     """Format product list as a compact catalog string for the prompt."""
     lines = []
     for p in products:
-        price_str = f"{p['price']:,}₽".replace(",", "\u202f")
+        price_str = _format_rub(p['price'])
         line = f"- {p['name']}: {price_str}"
         if p.get("old_price"):
-            old_str = f"{p['old_price']:,}₽".replace(",", "\u202f")
+            old_str = _format_rub(p['old_price'])
             line += f" (было {old_str})"
         if p.get("short_desc"):
             line += f" — {p['short_desc']}"
         lines.append(line)
     return "\n".join(lines)
+
+
+def _product_keywords(product: dict) -> list[str]:
+    name_words = re.findall(r"[A-Za-zА-Яа-яЁё0-9]+", product["name"].lower())
+    extra = [product["slug"].lower(), product.get("category", "").lower()]
+    return [kw for kw in (name_words + extra) if len(kw) > 2]
+
+
+def _find_products_in_text(message_text: str, products: list[dict]) -> list[dict]:
+    text = message_text.lower()
+    matches: list[dict] = []
+    for product in products:
+        keywords = _product_keywords(product)
+        if any(keyword in text for keyword in keywords):
+            matches.append(product)
+    unique = []
+    seen = set()
+    for product in matches:
+        if product["slug"] not in seen:
+            seen.add(product["slug"])
+            unique.append(product)
+    return unique
+
+
+def _build_price_reply(message_text: str, products: list[dict]) -> str | None:
+    if not _PRICE_KEYWORDS.search(message_text):
+        return None
+    matched = _find_products_in_text(message_text, products)
+    if not matched:
+        return None
+    parts = [f"{product['name']} — {_format_rub(product['price'])}" for product in matched[:3]]
+    reply = ". ".join(parts) + "."
+    if len(matched) == 1:
+        reply += " Если хотите, подскажу, что ещё нужно к этому комплекту."
+    else:
+        reply += " Если хотите, могу сразу подсказать, что лучше взять под ваш сценарий."
+    return reply
 
 
 # ---------------------------------------------------------------------------
@@ -192,6 +233,10 @@ async def process_support_message(message_text: str) -> str:
     products = load_product_catalog()
     catalog_text = format_catalog(products) if products else "(каталог недоступен)"
 
+    direct_price_reply = _build_price_reply(message_text, products)
+    if direct_price_reply:
+        return direct_price_reply
+
     kb_content = load_kb()
 
     is_price_question = bool(_PRICE_KEYWORDS.search(message_text))
@@ -199,15 +244,7 @@ async def process_support_message(message_text: str) -> str:
     price_urgency = ""
     if is_price_question:
         # Find which products the user might be asking about
-        mentioned_names = [
-            p["name"]
-            for p in products
-            if any(
-                kw.lower() in message_text.lower()
-                for kw in [p["slug"]] + p["name"].lower().split()
-                if len(kw) > 3
-            )
-        ]
+        mentioned_names = [p["name"] for p in _find_products_in_text(message_text, products)]
         if mentioned_names:
             price_urgency = (
                 "\n\nКЛИЕНТ СПРАШИВАЕТ О ЦЕНЕ. Назови точную цену из каталога выше "
