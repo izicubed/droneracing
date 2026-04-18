@@ -63,12 +63,59 @@ export function getMe(): Promise<{ id: number; email: string; role: string }> {
   return api.get("/auth/me");
 }
 
+export interface AdminLead {
+  id: number;
+  conversation_id: string;
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  product: string | null;
+  status: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminLeadMessage {
+  id: number;
+  sender: string;
+  text: string;
+  created_at: string;
+}
+
+export interface AdminLeadDetail extends AdminLead {
+  messages: AdminLeadMessage[];
+}
+
 export function getAdminUsers(): Promise<AdminUser[]> {
   return api.get("/admin/users");
 }
 
 export function getAdminUserSessions(userId: number): Promise<AdminSession[]> {
   return api.get(`/admin/users/${userId}/sessions`);
+}
+
+export function getAdminLeads(): Promise<AdminLead[]> {
+  return api.get("/admin/leads");
+}
+
+export function getAdminLead(leadId: number): Promise<AdminLeadDetail> {
+  return api.get(`/admin/leads/${leadId}`);
+}
+
+export function updateAdminLead(leadId: number, data: { status?: string; notes?: string }): Promise<{ id: number; status: string; notes: string | null }> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+  return fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/admin/leads/${leadId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(data),
+  }).then(res => {
+    if (!res.ok) throw new Error(res.statusText);
+    return res.json();
+  });
 }
 
 export async function saveTraining(packCount: number, laps: number[], startedAt?: string): Promise<void> {
