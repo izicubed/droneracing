@@ -24,6 +24,33 @@ _PRICE_KEYWORDS = re.compile(
     re.IGNORECASE,
 )
 
+# ---------------------------------------------------------------------------
+# Deterministic FAQ: RotorHazard vs NuclearHazard
+# ---------------------------------------------------------------------------
+
+_RH_VS_NH_RE = re.compile(
+    r"(rotorh\w*.*nuclearhaz|nuclearhaz\w*.*rotorh|"
+    r"роторхаз\w*.*ньюклир|ньюклир\w*.*роторхаз|"
+    r"(чем|в\s+чём?|в\s+чем|разниц[аеу]|отличи[еяй]|отличается|разли[чч]|difference)\b.{0,60}"
+    r"(rotorhazard|nuclearhazard|роторхаз|ньюклир)|"
+    r"(rotorhazard|nuclearhazard|роторхаз|ньюклир).{0,60}"
+    r"(чем|в\s+чём?|в\s+чем|разниц[аеу]|отличи[еяй]|отличается|разли[чч]|difference))",
+    re.IGNORECASE,
+)
+
+_RH_VS_NH_ANSWER = (
+    "По сути сама система не отличается — обе работают на одном ПО RotorHazard. "
+    "Отличается только исполнение платы. "
+    "RotorHazard — вариант для ручной сборки: голая плата стоит 1\u202f000\u202f₽, "
+    "комплект для сборки — 4\u202f000\u202f₽. "
+    "NuclearHazard — предсобранная на заводе версия, паять ничего не нужно, "
+    "достаточно подключить Raspberry Pi и докупить приёмники. "
+    "На каждый видеоканал нужен отдельный приёмник (~3\u202f000\u202f₽): "
+    "если их 4, в одном вылете летят 4 пилота, "
+    "но общее число пилотов на мероприятии не ограничено — просто летят группами. "
+    "Полная сборка с Raspberry Pi и корпусом выходит от 20\u202f000\u202f₽."
+)
+
 
 # ---------------------------------------------------------------------------
 # Product catalog loader (parses frontend/src/lib/products.ts via regex)
@@ -234,6 +261,11 @@ async def process_support_message(message_text: str) -> str:
     products = load_product_catalog()
     catalog_text = format_catalog(products) if products else "(каталог недоступен)"
 
+    # Deterministic FAQ: answer before touching LLM
+    if _RH_VS_NH_RE.search(message_text):
+        logger.info("Deterministic FAQ match: RH vs NH question — returning hardcoded answer")
+        return _RH_VS_NH_ANSWER
+
     direct_price_reply = _build_price_reply(message_text, products)
     if direct_price_reply:
         return direct_price_reply
@@ -279,6 +311,11 @@ async def process_support_message(message_text: str) -> str:
 - Не выдумывай цены и не округляй их.
 - Если товара нет в каталоге — скажи, что уточнишь состав и цену.
 - Можно назвать текущую цену и старую, чтобы показать скидку.{price_urgency}
+
+ПРАВИЛА ПО ФАКТАМ — строго обязательны:
+- Не выдумывай характеристики, отличия или позиционирование продуктов.
+- Если факт не подтверждён базой знаний или каталогом выше — не утверждай его. Скажи, что уточнишь.
+- Никаких маркетинговых различий "от себя". Только то, что есть в KB и каталоге.
 
 КАК ТЫ ПОМОГАЕШЬ:
 Помогаешь выбрать комплект, разобраться с настройкой, совместимостью, установкой, прошивкой, доставкой.
