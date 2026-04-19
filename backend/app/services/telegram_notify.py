@@ -13,6 +13,7 @@ The notifier never raises: delivery failures are logged and skipped.
 import asyncio
 import hashlib
 import logging
+import os
 from contextlib import suppress
 
 import httpx
@@ -114,10 +115,16 @@ async def _send_via_openclaw(text: str) -> bool:
         cmd.extend(["--account", account])
 
     try:
+        env = os.environ.copy()
+        env.setdefault("LANG", "C.UTF-8")
+        env.setdefault("LC_ALL", "C.UTF-8")
+        env.setdefault("PYTHONUTF8", "1")
+        env.setdefault("PYTHONIOENCODING", "utf-8")
         proc = await asyncio.create_subprocess_exec(
             *cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            env=env,
         )
         stdout, stderr = await proc.communicate()
         if proc.returncode == 0:
