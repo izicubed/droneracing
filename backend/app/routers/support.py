@@ -1,3 +1,4 @@
+import asyncio
 import time
 from collections import defaultdict
 from datetime import datetime
@@ -14,6 +15,7 @@ from app.models.message import Message
 from app.services.support_service import process_support_message
 from app.services.lead_parser import parse_lead_fields, merge_lead_fields
 from app.services.lead_events import emit_lead_event
+from app.services.telegram_notify import notify_important_answer
 
 router = APIRouter(prefix="/api/support", tags=["support"])
 
@@ -73,6 +75,9 @@ async def send_message(body: SendMessageRequest, db: AsyncSession = Depends(get_
     elif body.user_email and not conv.user_email:
         conv.user_email = body.user_email
 
+    # Parse lead fields early so we can enrich event payloads
+    parsed = parse_lead_fields(body.text)
+
     # Save user message
     user_msg = Message(
         conversation_id=body.conversation_id,
@@ -85,6 +90,9 @@ async def send_message(body: SendMessageRequest, db: AsyncSession = Depends(get_
     await emit_lead_event("new_message", {
         "conversation_id": body.conversation_id,
         "text_preview": body.text[:120],
+        "name": parsed.name,
+        "phone": parsed.phone,
+        "telegram": parsed.telegram,
     })
 
     # Get LLM response
@@ -102,8 +110,13 @@ async def send_message(body: SendMessageRequest, db: AsyncSession = Depends(get_
     )
     db.add(andrey_msg)
 
-    # Parse lead fields from user message
-    parsed = parse_lead_fields(body.text)
+    # Notify if Andrey's auto-reply looks important
+    asyncio.ensure_future(notify_important_answer({
+        "conversation_id": body.conversation_id,
+        "name": parsed.name,
+        "answer": andrey_text,
+        "risk": "автоответ с важной инфой",
+    }))
 
     # Determine if we should create/update a lead
     text_lower = body.text.lower()

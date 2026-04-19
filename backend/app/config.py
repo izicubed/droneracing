@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000"
     admin_password: str = "K2tool_RH_admin_2026"
     openrouter_api_key: str = ""
+    telegram_notify_bot_token: str = ""
+    telegram_notify_chat_id: str = ""
 
     @field_validator("database_url")
     @classmethod

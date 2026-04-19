@@ -23,6 +23,8 @@ import asyncio
 from datetime import datetime, timezone
 from pathlib import Path
 
+from app.services import telegram_notify
+
 logger = logging.getLogger(__name__)
 
 _EVENTS_FILE = Path(__file__).parent.parent.parent / "runtime" / "lead_events.jsonl"
@@ -48,6 +50,12 @@ async def emit_lead_event(event_type: str, payload: dict) -> None:
         **payload,
     }
     logger.info("lead_event: %s %s", event_type, payload)
+
+    # Telegram notifications (fire-and-forget; never raises)
+    if event_type == "new_message":
+        asyncio.ensure_future(telegram_notify.notify_new_message(payload))
+    elif event_type == "new_lead":
+        asyncio.ensure_future(telegram_notify.notify_new_lead(payload))
 
     async with _write_lock:
         try:
