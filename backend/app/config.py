@@ -10,6 +10,10 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000"
     admin_password: str = "K2tool_RH_admin_2026"
     openrouter_api_key: str = ""
+    openclaw_cli_path: str = "/home/admin/.nvm/versions/node/v22.22.2/bin/openclaw"
+    openclaw_notify_channel: str = "telegram"
+    openclaw_notify_account: str = "serik"
+    openclaw_notify_target: str = "160603571"
     telegram_notify_bot_token: str = ""
     telegram_notify_chat_id: str = ""
 

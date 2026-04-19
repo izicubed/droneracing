@@ -111,7 +111,7 @@ async def send_message(body: SendMessageRequest, db: AsyncSession = Depends(get_
     db.add(andrey_msg)
 
     # Notify if Andrey's auto-reply looks important
-    asyncio.ensure_future(notify_important_answer({
+    asyncio.create_task(notify_important_answer({
         "conversation_id": body.conversation_id,
         "name": parsed.name,
         "answer": andrey_text,
@@ -148,6 +148,8 @@ async def send_message(body: SendMessageRequest, db: AsyncSession = Depends(get_
                 "phone": parsed.phone,
                 "telegram": parsed.telegram,
                 "product": parsed.product,
+                "order_summary": parsed.order_summary,
+                "status": "new",
             })
     else:
         # Merge any new fields extracted from this message

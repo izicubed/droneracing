@@ -1,13 +1,19 @@
 """
-Telegram notification service (MVP).
+Direct Telegram notifier for website chat/leads.
 
-Sends plain-text notifications to a Telegram chat via Bot API.
-Requires TELEGRAM_NOTIFY_BOT_TOKEN and TELEGRAM_NOTIFY_CHAT_ID env vars.
-If not set — logs a warning on first use and silently skips sending.
+Primary path:
+    backend event -> OpenClaw CLI -> Telegram chat (account: Serik)
+
+Fallback path:
+    backend event -> Telegram Bot API
+
+The notifier never raises: delivery failures are logged and skipped.
 """
 
+import asyncio
 import hashlib
 import logging
+from contextlib import suppress
 
 import httpx
 
@@ -16,11 +22,7 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 _TELEGRAM_API = "https://api.telegram.org/bot{token}/sendMessage"
-
-# Dedup: last fingerprint per (conversation_id, event_type)
-_last_fingerprint: dict[str, str] = {}
-
-# Important answer heuristics
+_LAST_FINGERPRINT: dict[str, str] = {}
 _IMPORTANT_KEYWORDS = (
     "цена", "стоит", "₽", "телефон", "заказ",
     "оформить", "комплект", "могу подобрать",
@@ -29,68 +31,51 @@ _IMPORTANT_KEYWORDS = (
 _IMPORTANT_LENGTH = 180
 
 
-# ---------------------------------------------------------------------------
-# Heuristics
-# ---------------------------------------------------------------------------
-
 def is_important_answer(text: str) -> bool:
-    """Return True if Andrey's reply looks significant enough to notify."""
     if len(text) > _IMPORTANT_LENGTH:
         return True
     text_lower = text.lower()
     return any(kw in text_lower for kw in _IMPORTANT_KEYWORDS)
 
 
-# ---------------------------------------------------------------------------
-# Formatters
-# ---------------------------------------------------------------------------
-
 def _trunc(text: str | None, limit: int = 200) -> str:
     if not text:
         return "—"
-    text = text.strip()
+    text = " ".join(text.strip().split())
     if len(text) <= limit:
         return text
     return text[:limit].rstrip() + "…"
 
 
 def format_new_message(payload: dict) -> str:
-    lines = [
-        "Новый диалог на сайте",
+    return "\n".join([
+        "Новый диалог",
         f"Имя: {_trunc(payload.get('name'), 60)}",
         f"Телефон: {_trunc(payload.get('phone'), 30)}",
         f"Telegram: {_trunc(payload.get('telegram'), 40)}",
-        f"Сообщение: {_trunc(payload.get('text_preview'), 200)}",
-    ]
-    return "\n".join(lines)
+        f"Сообщение: {_trunc(payload.get('text_preview'), 220)}",
+    ])
 
 
 def format_new_lead(payload: dict) -> str:
-    lines = [
+    order_summary = payload.get("order_summary") or payload.get("product")
+    return "\n".join([
         "Новый лид",
         f"Имя: {_trunc(payload.get('name'), 60)}",
         f"Телефон: {_trunc(payload.get('phone'), 30)}",
         f"Telegram: {_trunc(payload.get('telegram'), 40)}",
-        f"Состав: {_trunc(payload.get('product'), 120)}",
-        f"Комментарий: {_trunc(payload.get('order_summary') or payload.get('notes'), 160)}",
-        f"Статус: {payload.get('status', 'new')}",
-    ]
-    return "\n".join(lines)
+        f"Заказ: {_trunc(order_summary, 140)}",
+        f"Статус: {_trunc(payload.get('status') or 'new', 30)}",
+    ])
 
 
 def format_important_answer(payload: dict) -> str:
-    lines = [
-        "Андрей ответил клиенту",
-        f"Кому: {_trunc(payload.get('name') or payload.get('conversation_id'), 60)}",
-        f"Ответ: {_trunc(payload.get('answer'), 300)}",
-        f"Риск: {payload.get('risk', 'важный ответ')}",
-    ]
-    return "\n".join(lines)
+    return "\n".join([
+        "Андрей ответил",
+        f"Клиент: {_trunc(payload.get('name') or payload.get('conversation_id'), 60)}",
+        f"Ответ: {_trunc(payload.get('answer'), 260)}",
+    ])
 
-
-# ---------------------------------------------------------------------------
-# Dedup
-# ---------------------------------------------------------------------------
 
 def _fingerprint(text: str) -> str:
     return hashlib.md5(text.encode("utf-8")).hexdigest()
@@ -99,29 +84,64 @@ def _fingerprint(text: str) -> str:
 def _is_duplicate(conversation_id: str, event_type: str, text: str) -> bool:
     key = f"{conversation_id}:{event_type}"
     fp = _fingerprint(text)
-    if _last_fingerprint.get(key) == fp:
+    if _LAST_FINGERPRINT.get(key) == fp:
         return True
-    _last_fingerprint[key] = fp
+    _LAST_FINGERPRINT[key] = fp
     return False
 
 
-# ---------------------------------------------------------------------------
-# Sender
-# ---------------------------------------------------------------------------
+async def _send_via_openclaw(text: str) -> bool:
+    cli_path = settings.openclaw_cli_path
+    target = settings.openclaw_notify_target
+    channel = settings.openclaw_notify_channel
+    account = settings.openclaw_notify_account
 
-async def send_telegram_message(text: str) -> bool:
-    """
-    Send a plain-text message to the configured Telegram chat.
-    Returns True on success, False on any failure (never raises).
-    """
+    if not cli_path or not target or not channel:
+        logger.warning("OpenClaw notifier disabled: missing cli_path/target/channel")
+        return False
+
+    cmd = [
+        cli_path,
+        "message",
+        "send",
+        "--channel", channel,
+        "--target", target,
+        "--message", text,
+        "--silent",
+        "--json",
+    ]
+    if account:
+        cmd.extend(["--account", account])
+
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await proc.communicate()
+        if proc.returncode == 0:
+            logger.info("telegram notify sent via OpenClaw account=%s target=%s", account or "default", target)
+            return True
+        logger.error(
+            "OpenClaw notify failed rc=%s stdout=%s stderr=%s",
+            proc.returncode,
+            stdout.decode("utf-8", errors="ignore")[:300],
+            stderr.decode("utf-8", errors="ignore")[:300],
+        )
+        return False
+    except FileNotFoundError:
+        logger.error("OpenClaw CLI not found at %s", cli_path)
+        return False
+    except Exception as exc:
+        logger.error("OpenClaw notify error: %s", exc, exc_info=True)
+        return False
+
+
+async def _send_via_bot_api(text: str) -> bool:
     token = settings.telegram_notify_bot_token
     chat_id = settings.telegram_notify_chat_id
-
     if not token or not chat_id:
-        logger.warning(
-            "Telegram notifications disabled: TELEGRAM_NOTIFY_BOT_TOKEN or "
-            "TELEGRAM_NOTIFY_CHAT_ID is not set."
-        )
         return False
 
     url = _TELEGRAM_API.format(token=token)
@@ -136,56 +156,47 @@ async def send_telegram_message(text: str) -> bool:
                 },
             )
         if resp.status_code == 200:
+            logger.info("telegram notify sent via Bot API chat_id=%s", chat_id)
             return True
-        logger.error(
-            "Telegram API returned HTTP %d: %s",
-            resp.status_code,
-            resp.text[:300],
-        )
-        return False
-    except httpx.TimeoutException:
-        logger.error("Telegram API request timed out")
-        return False
-    except httpx.RequestError as exc:
-        logger.error("Telegram API network error: %s", exc)
+        logger.error("Telegram Bot API error %s: %s", resp.status_code, resp.text[:300])
         return False
     except Exception as exc:
-        logger.error("Unexpected error sending Telegram message: %s", exc, exc_info=True)
+        logger.error("Telegram Bot API notify error: %s", exc, exc_info=True)
         return False
 
 
-# ---------------------------------------------------------------------------
-# High-level helpers (called from event handlers)
-# ---------------------------------------------------------------------------
+async def send_telegram_message(text: str) -> bool:
+    sent = await _send_via_openclaw(text)
+    if sent:
+        return True
+    return await _send_via_bot_api(text)
+
 
 async def notify_new_message(payload: dict) -> None:
-    """Send notification for a new user message (deduped)."""
     conversation_id = payload.get("conversation_id", "")
     text = format_new_message(payload)
     if _is_duplicate(conversation_id, "new_message", text):
-        logger.debug("telegram: skipping duplicate new_message for %s", conversation_id)
         return
-    await send_telegram_message(text)
+    with suppress(Exception):
+        await send_telegram_message(text)
 
 
 async def notify_new_lead(payload: dict) -> None:
-    """Send notification when a new lead is created (deduped)."""
     conversation_id = payload.get("conversation_id", "")
     text = format_new_lead(payload)
     if _is_duplicate(conversation_id, "new_lead", text):
-        logger.debug("telegram: skipping duplicate new_lead for %s", conversation_id)
         return
-    await send_telegram_message(text)
+    with suppress(Exception):
+        await send_telegram_message(text)
 
 
 async def notify_important_answer(payload: dict) -> None:
-    """Send notification for a significant auto-reply from Andrey (deduped)."""
     conversation_id = payload.get("conversation_id", "")
     answer = payload.get("answer", "")
     if not is_important_answer(answer):
         return
     text = format_important_answer(payload)
     if _is_duplicate(conversation_id, "important_answer", text):
-        logger.debug("telegram: skipping duplicate important_answer for %s", conversation_id)
         return
-    await send_telegram_message(text)
+    with suppress(Exception):
+        await send_telegram_message(text)
