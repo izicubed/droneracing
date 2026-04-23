@@ -124,7 +124,7 @@ export const PRODUCTS: Product[] = [
     slug: "rx5808",
     name: "Приёмник RX5808 Boscam",
     category: "RotorHazard",
-    price: 2000,
+    price: 3000,
     oldPrice: 3000,
     image: "/products/rx5808.jpg",
     shortDesc: "Видеоприёмник 5.8 ГГц для ворот",
