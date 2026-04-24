@@ -8,6 +8,7 @@ from app.models.event import Event, Heat, HeatPilot
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.models.lead import Lead
+from app.models.shop import InventoryItem, Purchase, Sale
 
 __all__ = [
     "User", "Pilot", "Equipment",
@@ -16,4 +17,5 @@ __all__ = [
     "TimerConfig",
     "Event", "Heat", "HeatPilot",
     "Conversation", "Message", "Lead",
+    "InventoryItem", "Purchase", "Sale",
 ]

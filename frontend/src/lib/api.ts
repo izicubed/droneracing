@@ -128,6 +128,91 @@ export function updateAdminLead(leadId: number, data: {
   });
 }
 
+export interface ShopDashboard {
+  cash_usd: number;
+  sales_usd: number;
+  profit_usd: number;
+  purchases_usd: number;
+}
+
+export interface ShopPurchase {
+  id: number;
+  item_name: string;
+  quantity: number;
+  unit_cost_usd: number;
+  total_cost_usd: number;
+  transport_cost_usd: number;
+  commission_cost_usd: number;
+  supplier: string | null;
+  status: "paid" | "in_transit" | "completed";
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ShopSale {
+  id: number;
+  item_name: string;
+  quantity: number;
+  unit_price_usd: number;
+  total_price_usd: number;
+  customer_name: string;
+  customer_contact: string | null;
+  notes: string | null;
+  cogs_usd: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InventoryItem {
+  id: number;
+  item_name: string;
+  quantity: number;
+  total_cost_usd: number;
+  avg_cost_usd: number;
+  updated_at: string;
+}
+
+export function getShopDashboard(): Promise<ShopDashboard> {
+  return api.get("/admin/shop/dashboard");
+}
+
+export function getShopSales(): Promise<ShopSale[]> {
+  return api.get("/admin/shop/sales");
+}
+
+export function createShopSale(data: Omit<ShopSale, "id" | "created_at" | "updated_at" | "cogs_usd">): Promise<ShopSale> {
+  return api.authPost("/admin/shop/sales", data);
+}
+
+export function updateShopSale(id: number, data: Omit<ShopSale, "id" | "created_at" | "updated_at" | "cogs_usd">): Promise<ShopSale> {
+  return request(`/admin/shop/sales/${id}`, { method: "PATCH", body: JSON.stringify(data), headers: authHeader() });
+}
+
+export function deleteShopSale(id: number): Promise<void> {
+  return api.authDelete(`/admin/shop/sales/${id}`);
+}
+
+export function getShopPurchases(): Promise<ShopPurchase[]> {
+  return api.get("/admin/shop/purchases");
+}
+
+export function createShopPurchase(data: Omit<ShopPurchase, "id" | "created_at" | "updated_at">): Promise<ShopPurchase> {
+  return api.authPost("/admin/shop/purchases", data);
+}
+
+export function updateShopPurchase(id: number, data: Omit<ShopPurchase, "id" | "created_at" | "updated_at">): Promise<ShopPurchase> {
+  return request(`/admin/shop/purchases/${id}`, { method: "PATCH", body: JSON.stringify(data), headers: authHeader() });
+}
+
+export function deleteShopPurchase(id: number): Promise<void> {
+  return api.authDelete(`/admin/shop/purchases/${id}`);
+}
+
+export function getShopInventory(): Promise<InventoryItem[]> {
+  return api.get("/admin/shop/inventory");
+}
+
 export async function saveTraining(packCount: number, laps: number[], startedAt?: string): Promise<void> {
   await api.authPost("/sessions/", {
     pack_count: packCount,
