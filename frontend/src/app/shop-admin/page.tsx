@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BarChart,
@@ -114,6 +114,81 @@ function ProfitModal({ sale, onClose }: { sale: ShopSale; onClose: () => void })
 
 const inputCls = "w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm";
 const labelCls = "block text-xs text-gray-400 mb-1";
+
+function StockItemPicker({
+  value,
+  onChange,
+  onSelect,
+  inventory,
+  className,
+}: {
+  value: string;
+  onChange: (name: string) => void;
+  onSelect: (item: InventoryItem) => void;
+  inventory: InventoryItem[];
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState(value);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Keep local query in sync when parent resets the value (e.g. form clear)
+  useEffect(() => { setQuery(value); }, [value]);
+
+  const inStock = inventory.filter(i => i.quantity > 0);
+  const filtered = query.trim()
+    ? inStock.filter(i => i.item_name.toLowerCase().includes(query.toLowerCase()))
+    : inStock;
+
+  function handleInput(e: React.ChangeEvent<HTMLInputElement>) {
+    setQuery(e.target.value);
+    onChange(e.target.value);
+    setOpen(true);
+  }
+
+  function handleSelect(item: InventoryItem) {
+    setQuery(item.item_name);
+    onSelect(item);
+    setOpen(false);
+  }
+
+  function handleBlur() {
+    closeTimer.current = setTimeout(() => setOpen(false), 150);
+  }
+
+  function handleFocus() {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    setOpen(true);
+  }
+
+  return (
+    <div className="relative">
+      <input
+        value={query}
+        onChange={handleInput}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        placeholder="Item name (type to search stock)"
+        className={className ?? inputCls}
+      />
+      {open && filtered.length > 0 && (
+        <div className="absolute z-50 mt-1 w-full bg-gray-900 border border-gray-700 rounded-xl shadow-xl max-h-52 overflow-y-auto">
+          {filtered.map(item => (
+            <button
+              key={item.id}
+              type="button"
+              onMouseDown={() => handleSelect(item)}
+              className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-gray-800 text-left transition"
+            >
+              <span className="text-gray-200">{item.item_name}</span>
+              <span className="text-xs text-gray-500 ml-2 shrink-0">{item.quantity} in stock · avg {money(item.avg_cost_usd)}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const PAYER_COLORS: Record<Payer, string> = {
   cubed: "bg-purple-900/50 text-purple-300 border-purple-700",
@@ -362,7 +437,13 @@ export default function ShopAdminPage() {
                       <p className="text-sm font-semibold">Item #{index + 1}</p>
                       {saleItems.length > 1 && <button onClick={() => setSaleItems((prev) => prev.filter((_, i) => i !== index))} className="text-red-400 text-xs">Remove</button>}
                     </div>
-                    <input placeholder="Item name" value={item.item_name} onChange={(e) => updateSaleItem(index, { item_name: e.target.value })} className={inputCls} />
+                    <StockItemPicker
+                      value={item.item_name}
+                      onChange={(name) => updateSaleItem(index, { item_name: name })}
+                      onSelect={(inv) => updateSaleItem(index, { item_name: inv.item_name })}
+                      inventory={inventory}
+                      className={inputCls}
+                    />
                     <div className="grid grid-cols-3 gap-2">
                       <div><label className={labelCls}>Qty</label><input type="number" min={1} value={item.quantity} onChange={(e) => updateSaleItem(index, { quantity: Number(e.target.value) })} className={inputCls} /></div>
                       <div><label className={labelCls}>Unit $</label><input type="text" inputMode="decimal" defaultValue={item.unit_price_usd || ""} key={`su-${index}-${editingSaleId}`} onBlur={(e) => updateSaleItem(index, { unit_price_usd: parseAmount(e.target.value) })} className={inputCls} placeholder="0.00" /></div>
