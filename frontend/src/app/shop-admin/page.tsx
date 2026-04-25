@@ -38,6 +38,10 @@ import {
 const money = (value: number) => `$${value.toFixed(2)}`;
 const fmt = (iso: string | null | undefined) =>
   iso ? new Date(iso).toLocaleDateString("en-GB") : "—";
+const parseAmount = (s: string): number => {
+  const n = parseFloat(s.replace(",", "."));
+  return isNaN(n) ? 0 : Math.max(0, n);
+};
 
 type Tab = "sales" | "purchases" | "inventory" | "charts";
 
@@ -250,8 +254,8 @@ export default function ShopAdminPage() {
                     <input placeholder="Item name" value={item.item_name} onChange={(e) => updateSaleItem(index, { item_name: e.target.value })} className={inputCls} />
                     <div className="grid grid-cols-3 gap-2">
                       <div><label className={labelCls}>Qty</label><input type="number" min={1} value={item.quantity} onChange={(e) => updateSaleItem(index, { quantity: Number(e.target.value) })} className={inputCls} /></div>
-                      <div><label className={labelCls}>Unit $</label><input type="number" min={0} step="0.01" value={item.unit_price_usd} onChange={(e) => updateSaleItem(index, { unit_price_usd: Number(e.target.value) })} className={inputCls} /></div>
-                      <div><label className={labelCls}>Total $</label><input type="number" min={0} step="0.01" value={item.total_price_usd} onChange={(e) => updateSaleItem(index, { total_price_usd: Number(e.target.value) })} className={inputCls} /></div>
+                      <div><label className={labelCls}>Unit $</label><input type="text" inputMode="decimal" defaultValue={item.unit_price_usd} key={`su-${index}-${editingSaleId}`} onBlur={(e) => updateSaleItem(index, { unit_price_usd: parseAmount(e.target.value) })} className={inputCls} placeholder="0.00" /></div>
+                      <div><label className={labelCls}>Total $</label><input type="text" inputMode="decimal" defaultValue={item.total_price_usd} key={`st-${index}-${editingSaleId}`} onBlur={(e) => updateSaleItem(index, { total_price_usd: parseAmount(e.target.value) })} className={inputCls} placeholder="0.00" /></div>
                     </div>
                   </div>
                 ))}
@@ -341,8 +345,8 @@ export default function ShopAdminPage() {
                     <input placeholder="Item name" value={item.item_name} onChange={(e) => updatePurchaseItem(index, { item_name: e.target.value })} className={inputCls} />
                     <div className="grid grid-cols-3 gap-2">
                       <div><label className={labelCls}>Qty</label><input type="number" min={1} value={item.quantity} onChange={(e) => updatePurchaseItem(index, { quantity: Number(e.target.value) })} className={inputCls} /></div>
-                      <div><label className={labelCls}>Unit $</label><input type="number" min={0} step="0.01" value={item.unit_cost_usd} onChange={(e) => updatePurchaseItem(index, { unit_cost_usd: Number(e.target.value) })} className={inputCls} /></div>
-                      <div><label className={labelCls}>Total $</label><input type="number" min={0} step="0.01" value={item.total_cost_usd} onChange={(e) => updatePurchaseItem(index, { total_cost_usd: Number(e.target.value) })} className={inputCls} /></div>
+                      <div><label className={labelCls}>Unit $</label><input type="text" inputMode="decimal" defaultValue={item.unit_cost_usd} key={`pu-${index}-${editingPurchaseId}`} onBlur={(e) => updatePurchaseItem(index, { unit_cost_usd: parseAmount(e.target.value) })} className={inputCls} placeholder="0.00" /></div>
+                      <div><label className={labelCls}>Total $</label><input type="text" inputMode="decimal" defaultValue={item.total_cost_usd} key={`pt-${index}-${editingPurchaseId}`} onBlur={(e) => updatePurchaseItem(index, { total_cost_usd: parseAmount(e.target.value) })} className={inputCls} placeholder="0.00" /></div>
                     </div>
                   </div>
                 ))}
@@ -355,7 +359,7 @@ export default function ShopAdminPage() {
                 {purchaseFees.map((fee, index) => (
                   <div key={index} className="flex gap-2 items-center">
                     <input placeholder="Fee name (e.g. Transport)" value={fee.name} onChange={(e) => updateFee(index, { name: e.target.value })} className="flex-1 bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
-                    <input type="number" min={0} step="0.01" placeholder="0.00" value={fee.amount_usd} onChange={(e) => updateFee(index, { amount_usd: Number(e.target.value) })} className="w-24 bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
+                    <input type="text" inputMode="decimal" placeholder="0.00" defaultValue={fee.amount_usd || ""} key={`fee-${index}-${editingPurchaseId}`} onBlur={(e) => updateFee(index, { amount_usd: parseAmount(e.target.value) })} className="w-24 bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
                     <button onClick={() => setPurchaseFees((prev) => prev.filter((_, i) => i !== index))} className="text-red-400 text-lg leading-none px-1">×</button>
                   </div>
                 ))}
