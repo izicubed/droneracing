@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.models.shop import InventoryItem, Purchase, PurchaseFee, PurchaseItem, PurchaseStatus, Sale, SaleItem
+from app.models.shop import InventoryItem, Payer, Purchase, PurchaseFee, PurchaseItem, PurchaseStatus, Sale, SaleFee, SaleItem
 from app.models.user import User, UserRole
 from app.routers.auth import get_current_user
 
@@ -28,11 +28,13 @@ class PurchaseItemIn(BaseModel):
     quantity: int = Field(gt=0)
     unit_cost_usd: float = Field(ge=0)
     total_cost_usd: float = Field(ge=0)
+    paid_by: Payer | None = None
 
 
 class PurchaseFeeIn(BaseModel):
     name: str
     amount_usd: float = Field(ge=0)
+    paid_by: Payer | None = None
 
 
 class PurchaseIn(BaseModel):
@@ -51,12 +53,20 @@ class SaleItemIn(BaseModel):
     total_price_usd: float = Field(ge=0)
 
 
+class SaleFeeIn(BaseModel):
+    name: str
+    amount_usd: float = Field(ge=0)
+    received_by: Payer | None = None
+
+
 class SaleIn(BaseModel):
     items: list[SaleItemIn]
+    fees: list[SaleFeeIn] = Field(default_factory=list)
     customer_name: str
     customer_contact: str | None = None
     sale_date: date | None = None
     notes: str | None = None
+    received_by: Payer | None = None
 
 
 async def _get_inventory_item(db: AsyncSession, item_name: str) -> InventoryItem | None:
@@ -72,8 +82,16 @@ def _purchase_fees_total(purchase: Purchase) -> float:
     return round(sum(fee.amount_usd for fee in purchase.fees), 2)
 
 
-def _sale_total(sale: Sale) -> float:
+def _sale_items_total(sale: Sale) -> float:
     return round(sum(item.total_price_usd for item in sale.items), 2)
+
+
+def _sale_fees_total(sale: Sale) -> float:
+    return round(sum(fee.amount_usd for fee in sale.fees), 2)
+
+
+def _sale_total(sale: Sale) -> float:
+    return round(_sale_items_total(sale) + _sale_fees_total(sale), 2)
 
 
 def _sale_cogs(sale: Sale) -> float:
@@ -142,7 +160,7 @@ def _purchase_to_dict(purchase: Purchase) -> dict:
         "supplier": purchase.supplier,
         "status": purchase.status,
         "purchase_date": purchase.purchase_date.isoformat() if purchase.purchase_date else None,
-        "fees": [{"id": f.id, "name": f.name, "amount_usd": f.amount_usd} for f in purchase.fees],
+        "fees": [{"id": f.id, "name": f.name, "amount_usd": f.amount_usd, "paid_by": f.paid_by} for f in purchase.fees],
         "fees_total_usd": fees_total,
         "goods_total_usd": goods_total,
         "total_cost_usd": round(goods_total + fees_total, 2),
@@ -156,6 +174,7 @@ def _purchase_to_dict(purchase: Purchase) -> dict:
                 "quantity": item.quantity,
                 "unit_cost_usd": item.unit_cost_usd,
                 "total_cost_usd": item.total_cost_usd,
+                "paid_by": item.paid_by,
             }
             for item in purchase.items
         ],
@@ -163,16 +182,22 @@ def _purchase_to_dict(purchase: Purchase) -> dict:
 
 
 def _sale_to_dict(sale: Sale) -> dict:
+    items_total = _sale_items_total(sale)
+    fees_total = _sale_fees_total(sale)
     return {
         "id": sale.id,
         "customer_name": sale.customer_name,
         "customer_contact": sale.customer_contact,
         "notes": sale.notes,
         "sale_date": sale.sale_date.isoformat() if sale.sale_date else None,
-        "total_price_usd": _sale_total(sale),
+        "items_total_usd": items_total,
+        "fees_total_usd": fees_total,
+        "total_price_usd": round(items_total + fees_total, 2),
         "cogs_usd": _sale_cogs(sale),
+        "received_by": sale.received_by,
         "created_at": sale.created_at,
         "updated_at": sale.updated_at,
+        "fees": [{"id": f.id, "name": f.name, "amount_usd": f.amount_usd, "received_by": f.received_by} for f in sale.fees],
         "items": [
             {
                 "id": item.id,
@@ -189,24 +214,46 @@ def _sale_to_dict(sale: Sale) -> dict:
 
 @router.get("/dashboard")
 async def get_dashboard(_: User = Depends(require_shop_admin), db: AsyncSession = Depends(get_db)):
-    sales = (await db.execute(select(Sale).options(selectinload(Sale.items)))).scalars().all()
+    sales = (await db.execute(select(Sale).options(selectinload(Sale.items), selectinload(Sale.fees)))).scalars().all()
     purchases = (await db.execute(
         select(Purchase).options(selectinload(Purchase.items), selectinload(Purchase.fees))
     )).scalars().all()
     sales_sum = sum(_sale_total(sale) for sale in sales)
     cogs_sum = sum(_sale_cogs(sale) for sale in sales)
     purchases_sum = sum(_purchase_goods_total(p) + _purchase_fees_total(p) for p in purchases)
+
+    # Per-person cash: sales/fees received by them minus purchases (items + fees) paid by them
+    person_sales: dict[str, float] = {"cubed": 0.0, "vlad": 0.0}
+    person_purchases: dict[str, float] = {"cubed": 0.0, "vlad": 0.0}
+
+    for sale in sales:
+        if sale.received_by:
+            person_sales[sale.received_by] += _sale_items_total(sale)
+        for fee in sale.fees:
+            if fee.received_by:
+                person_sales[fee.received_by] += fee.amount_usd
+
+    for purchase in purchases:
+        for item in purchase.items:
+            if item.paid_by:
+                person_purchases[item.paid_by] += item.total_cost_usd
+        for fee in purchase.fees:
+            if fee.paid_by:
+                person_purchases[fee.paid_by] += fee.amount_usd
+
     return {
         "cash_usd": round(sales_sum - purchases_sum, 2),
         "sales_usd": round(sales_sum, 2),
         "profit_usd": round(sales_sum - cogs_sum, 2),
         "purchases_usd": round(purchases_sum, 2),
+        "cubed_cash_usd": round(person_sales["cubed"] - person_purchases["cubed"], 2),
+        "vlad_cash_usd": round(person_sales["vlad"] - person_purchases["vlad"], 2),
     }
 
 
 @router.get("/chart-data")
 async def get_chart_data(_: User = Depends(require_shop_admin), db: AsyncSession = Depends(get_db)):
-    sales = (await db.execute(select(Sale).options(selectinload(Sale.items)))).scalars().all()
+    sales = (await db.execute(select(Sale).options(selectinload(Sale.items), selectinload(Sale.fees)))).scalars().all()
     purchases = (await db.execute(
         select(Purchase).options(selectinload(Purchase.items), selectinload(Purchase.fees))
     )).scalars().all()
@@ -329,7 +376,7 @@ async def delete_purchase(purchase_id: int, _: User = Depends(require_shop_admin
 @router.get("/sales")
 async def list_sales(_: User = Depends(require_shop_admin), db: AsyncSession = Depends(get_db)):
     rows = (await db.execute(
-        select(Sale).options(selectinload(Sale.items)).order_by(Sale.created_at.desc())
+        select(Sale).options(selectinload(Sale.items), selectinload(Sale.fees)).order_by(Sale.created_at.desc())
     )).scalars().all()
     return [_sale_to_dict(row) for row in rows]
 
@@ -340,14 +387,17 @@ async def create_sale(body: SaleIn, _: User = Depends(require_shop_admin), db: A
     for line in body.items:
         cogs = await _consume_inventory_for_sale_line(db, line.item_name, line.quantity)
         items.append(SaleItem(**line.model_dump(), cogs_usd=cogs))
+    fees = [SaleFee(**fee.model_dump()) for fee in body.fees if fee.name.strip()]
     sale = Sale(
         customer_name=body.customer_name,
         customer_contact=body.customer_contact,
         sale_date=body.sale_date,
         notes=body.notes,
-        total_price_usd=round(sum(item.total_price_usd for item in items), 2),
+        received_by=body.received_by,
+        total_price_usd=round(sum(item.total_price_usd for item in items) + sum(f.amount_usd for f in fees), 2),
         cogs_usd=round(sum(item.cogs_usd for item in items), 2),
         items=items,
+        fees=fees,
     )
     db.add(sale)
     await db.commit()
@@ -357,7 +407,7 @@ async def create_sale(body: SaleIn, _: User = Depends(require_shop_admin), db: A
 
 @router.patch("/sales/{sale_id}")
 async def update_sale(sale_id: int, body: SaleIn, _: User = Depends(require_shop_admin), db: AsyncSession = Depends(get_db)):
-    sale = await db.get(Sale, sale_id, options=[selectinload(Sale.items)])
+    sale = await db.get(Sale, sale_id, options=[selectinload(Sale.items), selectinload(Sale.fees)])
     if not sale:
         raise HTTPException(status_code=404, detail="Sale not found")
     await _restore_inventory_from_sale(db, sale)
@@ -367,12 +417,15 @@ async def update_sale(sale_id: int, body: SaleIn, _: User = Depends(require_shop
         cogs = await _consume_inventory_for_sale_line(db, line.item_name, line.quantity)
         items.append(SaleItem(**line.model_dump(), cogs_usd=cogs))
 
+    fees = [SaleFee(**fee.model_dump()) for fee in body.fees if fee.name.strip()]
     sale.customer_name = body.customer_name
     sale.customer_contact = body.customer_contact
     sale.sale_date = body.sale_date
     sale.notes = body.notes
+    sale.received_by = body.received_by
     sale.items = items
-    sale.total_price_usd = round(sum(item.total_price_usd for item in items), 2)
+    sale.fees = fees
+    sale.total_price_usd = round(sum(item.total_price_usd for item in items) + sum(f.amount_usd for f in fees), 2)
     sale.cogs_usd = round(sum(item.cogs_usd for item in items), 2)
 
     await db.commit()
@@ -382,7 +435,7 @@ async def update_sale(sale_id: int, body: SaleIn, _: User = Depends(require_shop
 
 @router.delete("/sales/{sale_id}")
 async def delete_sale(sale_id: int, _: User = Depends(require_shop_admin), db: AsyncSession = Depends(get_db)):
-    sale = await db.get(Sale, sale_id, options=[selectinload(Sale.items)])
+    sale = await db.get(Sale, sale_id, options=[selectinload(Sale.items), selectinload(Sale.fees)])
     if not sale:
         raise HTTPException(status_code=404, detail="Sale not found")
     await _restore_inventory_from_sale(db, sale)

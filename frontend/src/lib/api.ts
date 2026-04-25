@@ -128,11 +128,15 @@ export function updateAdminLead(leadId: number, data: {
   });
 }
 
+export type Payer = "cubed" | "vlad";
+
 export interface ShopDashboard {
   cash_usd: number;
   sales_usd: number;
   profit_usd: number;
   purchases_usd: number;
+  cubed_cash_usd: number;
+  vlad_cash_usd: number;
 }
 
 export interface ShopPurchaseItem {
@@ -141,12 +145,14 @@ export interface ShopPurchaseItem {
   quantity: number;
   unit_cost_usd: number;
   total_cost_usd: number;
+  paid_by?: Payer | null;
 }
 
 export interface ShopPurchaseFee {
   id?: number;
   name: string;
   amount_usd: number;
+  paid_by?: Payer | null;
 }
 
 export interface ShopPurchase {
@@ -173,15 +179,26 @@ export interface ShopSaleItem {
   cogs_usd?: number;
 }
 
+export interface ShopSaleFee {
+  id?: number;
+  name: string;
+  amount_usd: number;
+  received_by?: Payer | null;
+}
+
 export interface ShopSale {
   id: number;
   items: ShopSaleItem[];
+  fees: ShopSaleFee[];
+  items_total_usd: number;
+  fees_total_usd: number;
   total_price_usd: number;
   customer_name: string;
   customer_contact: string | null;
   notes: string | null;
   cogs_usd: number;
   sale_date: string | null;
+  received_by: Payer | null;
   created_at: string;
   updated_at: string;
 }
@@ -225,11 +242,11 @@ export function getShopSales(): Promise<ShopSale[]> {
   return api.get("/admin/shop/sales");
 }
 
-export function createShopSale(data: { items: ShopSaleItem[]; customer_name: string; customer_contact?: string; sale_date?: string | null; notes?: string }): Promise<ShopSale> {
+export function createShopSale(data: { items: ShopSaleItem[]; fees: ShopSaleFee[]; customer_name: string; customer_contact?: string; sale_date?: string | null; notes?: string; received_by?: Payer | null }): Promise<ShopSale> {
   return api.authPost("/admin/shop/sales", data);
 }
 
-export function updateShopSale(id: number, data: { items: ShopSaleItem[]; customer_name: string; customer_contact?: string; sale_date?: string | null; notes?: string }): Promise<ShopSale> {
+export function updateShopSale(id: number, data: { items: ShopSaleItem[]; fees: ShopSaleFee[]; customer_name: string; customer_contact?: string; sale_date?: string | null; notes?: string; received_by?: Payer | null }): Promise<ShopSale> {
   return request(`/admin/shop/sales/${id}`, { method: "PATCH", body: JSON.stringify(data), headers: authHeader() });
 }
 
@@ -248,6 +265,7 @@ export function createShopPurchase(data: { items: ShopPurchaseItem[]; fees: Shop
 export function updateShopPurchase(id: number, data: { items: ShopPurchaseItem[]; fees: ShopPurchaseFee[]; supplier?: string; status: "paid" | "in_transit" | "completed"; purchase_date?: string | null; notes?: string }): Promise<ShopPurchase> {
   return request(`/admin/shop/purchases/${id}`, { method: "PATCH", body: JSON.stringify(data), headers: authHeader() });
 }
+
 
 export function deleteShopPurchase(id: number): Promise<void> {
   return api.authDelete(`/admin/shop/purchases/${id}`);

@@ -13,6 +13,11 @@ class PurchaseStatus(str, enum.Enum):
     completed = "completed"
 
 
+class Payer(str, enum.Enum):
+    cubed = "cubed"
+    vlad = "vlad"
+
+
 class InventoryItem(Base):
     __tablename__ = "inventory_items"
 
@@ -56,6 +61,7 @@ class PurchaseItem(Base):
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
     unit_cost_usd: Mapped[float] = mapped_column(Float, nullable=False)
     total_cost_usd: Mapped[float] = mapped_column(Float, nullable=False)
+    paid_by: Mapped[Payer | None] = mapped_column(Enum(Payer), nullable=True)
 
     purchase: Mapped[Purchase] = relationship(back_populates="items")
 
@@ -67,6 +73,7 @@ class PurchaseFee(Base):
     purchase_id: Mapped[int] = mapped_column(ForeignKey("purchases.id", ondelete="CASCADE"), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     amount_usd: Mapped[float] = mapped_column(Float, default=0, nullable=False)
+    paid_by: Mapped[Payer | None] = mapped_column(Enum(Payer), nullable=True)
 
     purchase: Mapped[Purchase] = relationship(back_populates="fees")
 
@@ -81,10 +88,16 @@ class Sale(Base):
     total_price_usd: Mapped[float] = mapped_column(Float, default=0, nullable=False)
     cogs_usd: Mapped[float] = mapped_column(Float, default=0, nullable=False)
     sale_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    received_by: Mapped[Payer | None] = mapped_column(Enum(Payer), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
     items: Mapped[list["SaleItem"]] = relationship(
+        back_populates="sale",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    fees: Mapped[list["SaleFee"]] = relationship(
         back_populates="sale",
         cascade="all, delete-orphan",
         lazy="selectin",
@@ -103,3 +116,15 @@ class SaleItem(Base):
     cogs_usd: Mapped[float] = mapped_column(Float, default=0, nullable=False)
 
     sale: Mapped[Sale] = relationship(back_populates="items")
+
+
+class SaleFee(Base):
+    __tablename__ = "sale_fees"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    sale_id: Mapped[int] = mapped_column(ForeignKey("sales.id", ondelete="CASCADE"), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    amount_usd: Mapped[float] = mapped_column(Float, default=0, nullable=False)
+    received_by: Mapped[Payer | None] = mapped_column(Enum(Payer), nullable=True)
+
+    sale: Mapped[Sale] = relationship(back_populates="fees")

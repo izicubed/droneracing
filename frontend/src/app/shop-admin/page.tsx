@@ -24,12 +24,14 @@ import {
   getShopPurchases,
   getShopSales,
   InventoryItem,
+  Payer,
   ShopChartData,
   ShopDashboard,
   ShopPurchase,
   ShopPurchaseFee,
   ShopPurchaseItem,
   ShopSale,
+  ShopSaleFee,
   ShopSaleItem,
   updateShopPurchase,
   updateShopSale,
@@ -46,13 +48,42 @@ const parseAmount = (s: string): number => {
 type Tab = "sales" | "purchases" | "inventory" | "charts";
 
 const emptySaleItem = (): ShopSaleItem => ({ item_name: "", quantity: 1, unit_price_usd: 0, total_price_usd: 0 });
-const emptyPurchaseItem = (): ShopPurchaseItem => ({ item_name: "", quantity: 1, unit_cost_usd: 0, total_cost_usd: 0 });
-const emptyFee = (): ShopPurchaseFee => ({ name: "", amount_usd: 0 });
+const emptySaleFee = (): ShopSaleFee => ({ name: "", amount_usd: 0, received_by: null });
+const emptyPurchaseItem = (): ShopPurchaseItem => ({ item_name: "", quantity: 1, unit_cost_usd: 0, total_cost_usd: 0, paid_by: null });
+const emptyFee = (): ShopPurchaseFee => ({ name: "", amount_usd: 0, paid_by: null });
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
 const inputCls = "w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm";
 const labelCls = "block text-xs text-gray-400 mb-1";
+
+const PAYER_COLORS: Record<Payer, string> = {
+  cubed: "bg-purple-900/50 text-purple-300 border-purple-700",
+  vlad: "bg-cyan-900/50 text-cyan-300 border-cyan-700",
+};
+
+function PayerBadge({ value }: { value: Payer | null | undefined }) {
+  if (!value) return <span className="text-gray-600 text-xs">—</span>;
+  return (
+    <span className={`text-xs px-2 py-0.5 rounded-full border ${PAYER_COLORS[value]}`}>
+      {value[0].toUpperCase() + value.slice(1)}
+    </span>
+  );
+}
+
+function PayerSelect({ value, onChange }: { value: Payer | null | undefined; onChange: (v: Payer | null) => void }) {
+  return (
+    <select
+      value={value ?? ""}
+      onChange={(e) => onChange((e.target.value as Payer) || null)}
+      className="bg-gray-950 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-gray-300"
+    >
+      <option value="">—</option>
+      <option value="cubed">Cubed</option>
+      <option value="vlad">Vlad</option>
+    </select>
+  );
+}
 
 const TOOLTIP_STYLE = {
   contentStyle: { backgroundColor: "#111827", border: "1px solid #374151", color: "#f3f4f6", borderRadius: 8 },
@@ -71,8 +102,9 @@ export default function ShopAdminPage() {
 
   // ----- sale form state -----
   const [saleItems, setSaleItems] = useState<ShopSaleItem[]>([emptySaleItem()]);
+  const [saleFees, setSaleFees] = useState<ShopSaleFee[]>([]);
   const [saleMeta, setSaleMeta] = useState({
-    customer_name: "", customer_contact: "", sale_date: todayISO(), notes: "",
+    customer_name: "", customer_contact: "", sale_date: todayISO(), notes: "", received_by: null as Payer | null,
   });
   const [editingSaleId, setEditingSaleId] = useState<number | null>(null);
 
@@ -125,6 +157,10 @@ export default function ShopAdminPage() {
     setPurchaseFees((prev) => prev.map((f, i) => (i === index ? { ...f, ...patch } : f)));
   }
 
+  function updateSaleFee(index: number, patch: Partial<ShopSaleFee>) {
+    setSaleFees((prev) => prev.map((f, i) => (i === index ? { ...f, ...patch } : f)));
+  }
+
   // ----- submit handlers -----
   async function submitSale() {
     setError("");
@@ -133,11 +169,13 @@ export default function ShopAdminPage() {
         ...saleMeta,
         sale_date: saleMeta.sale_date || null,
         items: saleItems,
+        fees: saleFees.filter((f) => f.name.trim()),
       };
       if (editingSaleId) await updateShopSale(editingSaleId, payload);
       else await createShopSale(payload);
       setSaleItems([emptySaleItem()]);
-      setSaleMeta({ customer_name: "", customer_contact: "", sale_date: todayISO(), notes: "" });
+      setSaleFees([]);
+      setSaleMeta({ customer_name: "", customer_contact: "", sale_date: todayISO(), notes: "", received_by: null });
       setEditingSaleId(null);
       await loadAll();
     } catch (e) {
@@ -169,7 +207,8 @@ export default function ShopAdminPage() {
   function cancelSaleEdit() {
     setEditingSaleId(null);
     setSaleItems([emptySaleItem()]);
-    setSaleMeta({ customer_name: "", customer_contact: "", sale_date: todayISO(), notes: "" });
+    setSaleFees([]);
+    setSaleMeta({ customer_name: "", customer_contact: "", sale_date: todayISO(), notes: "", received_by: null });
   }
 
   function cancelPurchaseEdit() {
@@ -198,13 +237,21 @@ export default function ShopAdminPage() {
         </div>
 
         {/* Stats cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {([["Cash", dashboard.cash_usd], ["Sales", dashboard.sales_usd], ["Profit", dashboard.profit_usd], ["Purchases", dashboard.purchases_usd]] as [string, number][]).map(([label, value]) => (
             <div key={label} className="rounded-2xl border border-gray-800 bg-gray-900 p-4">
               <p className="text-xs uppercase tracking-[0.2em] text-gray-500">{label}</p>
               <p className="mt-2 text-2xl font-black text-yellow-400">{money(value)}</p>
             </div>
           ))}
+          <div className="rounded-2xl border border-purple-800/50 bg-gray-900 p-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-purple-400">Cubed</p>
+            <p className="mt-2 text-2xl font-black text-purple-300">{money(dashboard.cubed_cash_usd)}</p>
+          </div>
+          <div className="rounded-2xl border border-cyan-800/50 bg-gray-900 p-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-cyan-400">Vlad</p>
+            <p className="mt-2 text-2xl font-black text-cyan-300">{money(dashboard.vlad_cash_usd)}</p>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -244,6 +291,11 @@ export default function ShopAdminPage() {
                 <textarea value={saleMeta.notes} onChange={(e) => setSaleMeta({ ...saleMeta, notes: e.target.value })} className={`${inputCls} min-h-[60px]`} />
               </div>
 
+              <div>
+                <label className={labelCls}>Payment received by</label>
+                <PayerSelect value={saleMeta.received_by} onChange={(v) => setSaleMeta({ ...saleMeta, received_by: v })} />
+              </div>
+
               <div className="space-y-3">
                 {saleItems.map((item, index) => (
                   <div key={index} className="rounded-xl border border-gray-800 p-3 space-y-2">
@@ -262,7 +314,32 @@ export default function ShopAdminPage() {
               </div>
 
               <button onClick={() => setSaleItems((prev) => [...prev, emptySaleItem()])} className="px-3 py-1.5 rounded-lg border border-gray-700 text-sm">+ Add item</button>
-              <div className="text-sm text-gray-400">Total: <span className="text-yellow-400 font-semibold">{money(saleItems.reduce((s, i) => s + i.total_price_usd, 0))}</span></div>
+
+              {/* Service fees */}
+              <div className="border-t border-gray-800 pt-3 space-y-2">
+                <p className="text-sm font-semibold text-gray-300">Service fees</p>
+                {saleFees.map((fee, index) => (
+                  <div key={index} className="flex gap-2 items-center">
+                    <input placeholder="Fee name (e.g. Delivery)" value={fee.name} onChange={(e) => updateSaleFee(index, { name: e.target.value })} className="flex-1 bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
+                    <input type="text" inputMode="decimal" placeholder="0.00" defaultValue={fee.amount_usd || ""} key={`sfee-${index}-${editingSaleId}`} onBlur={(e) => updateSaleFee(index, { amount_usd: parseAmount(e.target.value) })} className="w-24 bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
+                    <PayerSelect value={fee.received_by} onChange={(v) => updateSaleFee(index, { received_by: v })} />
+                    <button onClick={() => setSaleFees((prev) => prev.filter((_, i) => i !== index))} className="text-red-400 text-lg leading-none px-1">×</button>
+                  </div>
+                ))}
+                <button onClick={() => setSaleFees((prev) => [...prev, emptySaleFee()])} className="px-3 py-1.5 rounded-lg border border-dashed border-gray-600 text-sm text-gray-400">+ Add fee</button>
+              </div>
+
+              {(() => {
+                const itemsTotal = saleItems.reduce((s, i) => s + i.total_price_usd, 0);
+                const feesTotal = saleFees.reduce((s, f) => s + (f.amount_usd || 0), 0);
+                return (
+                  <div className="space-y-1 text-sm text-gray-400 border-t border-gray-800 pt-3">
+                    <div className="flex justify-between"><span>Items total</span><span>{money(itemsTotal)}</span></div>
+                    {feesTotal > 0 && <div className="flex justify-between"><span>Fees total</span><span>{money(feesTotal)}</span></div>}
+                    <div className="flex justify-between font-semibold text-yellow-400"><span>Grand total</span><span>{money(itemsTotal + feesTotal)}</span></div>
+                  </div>
+                );
+              })()}
 
               <div className="flex gap-2">
                 <button onClick={submitSale} className="px-4 py-2 rounded-lg bg-yellow-500 text-gray-950 font-bold text-sm">Save</button>
@@ -274,7 +351,7 @@ export default function ShopAdminPage() {
             <div className="rounded-2xl border border-gray-800 bg-gray-900 overflow-auto">
               <table className="w-full text-sm">
                 <thead className="text-left text-gray-400 border-b border-gray-800">
-                  <tr><th className="p-3">Customer</th><th>Items</th><th>Total</th><th>Sale date</th><th></th></tr>
+                  <tr><th className="p-3">Customer</th><th>Items</th><th>Fees</th><th>Total</th><th>Received by</th><th>Sale date</th><th></th></tr>
                 </thead>
                 <tbody>
                   {sales.map((sale) => (
@@ -284,13 +361,25 @@ export default function ShopAdminPage() {
                         <div className="text-xs text-gray-500">{sale.customer_contact ?? "—"}</div>
                       </td>
                       <td className="p-3">{sale.items.map((item) => <div key={item.id ?? `${item.item_name}-${item.quantity}`}>{item.item_name} × {item.quantity}</div>)}</td>
+                      <td className="p-3">
+                        {sale.fees.length > 0
+                          ? sale.fees.map((f, i) => (
+                              <div key={i} className="flex items-center gap-1.5 text-xs text-gray-400 mb-0.5">
+                                <span>{f.name}: {money(f.amount_usd)}</span>
+                                <PayerBadge value={f.received_by} />
+                              </div>
+                            ))
+                          : <span className="text-gray-600">—</span>}
+                      </td>
                       <td className="p-3 whitespace-nowrap">{money(sale.total_price_usd)}</td>
+                      <td className="p-3"><PayerBadge value={sale.received_by} /></td>
                       <td className="p-3 whitespace-nowrap text-gray-400">{fmt(sale.sale_date ?? sale.created_at)}</td>
                       <td className="pr-3 p-3 text-right space-x-2 whitespace-nowrap">
                         <button onClick={() => {
                           setEditingSaleId(sale.id);
-                          setSaleMeta({ customer_name: sale.customer_name, customer_contact: sale.customer_contact ?? "", sale_date: sale.sale_date ?? sale.created_at.slice(0, 10), notes: sale.notes ?? "" });
+                          setSaleMeta({ customer_name: sale.customer_name, customer_contact: sale.customer_contact ?? "", sale_date: sale.sale_date ?? sale.created_at.slice(0, 10), notes: sale.notes ?? "", received_by: sale.received_by });
                           setSaleItems(sale.items.map((item) => ({ item_name: item.item_name, quantity: item.quantity, unit_price_usd: item.unit_price_usd, total_price_usd: item.total_price_usd })));
+                          setSaleFees(sale.fees.map((f) => ({ name: f.name, amount_usd: f.amount_usd, received_by: f.received_by ?? null })));
                           setTab("sales");
                         }} className="text-yellow-400">Edit</button>
                         <button onClick={async () => { await deleteShopSale(sale.id); await loadAll(); }} className="text-red-400">Delete</button>
@@ -348,6 +437,10 @@ export default function ShopAdminPage() {
                       <div><label className={labelCls}>Unit $</label><input type="text" inputMode="decimal" defaultValue={item.unit_cost_usd} key={`pu-${index}-${editingPurchaseId}`} onBlur={(e) => updatePurchaseItem(index, { unit_cost_usd: parseAmount(e.target.value) })} className={inputCls} placeholder="0.00" /></div>
                       <div><label className={labelCls}>Total $</label><input type="text" inputMode="decimal" defaultValue={item.total_cost_usd} key={`pt-${index}-${editingPurchaseId}`} onBlur={(e) => updatePurchaseItem(index, { total_cost_usd: parseAmount(e.target.value) })} className={inputCls} placeholder="0.00" /></div>
                     </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-gray-400">Paid by</label>
+                      <PayerSelect value={item.paid_by} onChange={(v) => updatePurchaseItem(index, { paid_by: v })} />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -360,6 +453,7 @@ export default function ShopAdminPage() {
                   <div key={index} className="flex gap-2 items-center">
                     <input placeholder="Fee name (e.g. Transport)" value={fee.name} onChange={(e) => updateFee(index, { name: e.target.value })} className="flex-1 bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
                     <input type="text" inputMode="decimal" placeholder="0.00" defaultValue={fee.amount_usd || ""} key={`fee-${index}-${editingPurchaseId}`} onBlur={(e) => updateFee(index, { amount_usd: parseAmount(e.target.value) })} className="w-24 bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm" />
+                    <PayerSelect value={fee.paid_by} onChange={(v) => updateFee(index, { paid_by: v })} />
                     <button onClick={() => setPurchaseFees((prev) => prev.filter((_, i) => i !== index))} className="text-red-400 text-lg leading-none px-1">×</button>
                   </div>
                 ))}
@@ -388,11 +482,23 @@ export default function ShopAdminPage() {
                   {purchases.map((purchase) => (
                     <tr key={purchase.id} className="border-b border-gray-800/70 align-top">
                       <td className="p-3">{purchase.supplier ?? "—"}</td>
-                      <td className="p-3">{purchase.items.map((item) => <div key={item.id ?? `${item.item_name}-${item.quantity}`}>{item.item_name} × {item.quantity}</div>)}</td>
+                      <td className="p-3">
+                        {purchase.items.map((item) => (
+                          <div key={item.id ?? `${item.item_name}-${item.quantity}`} className="flex items-center gap-1.5 mb-0.5">
+                            <span>{item.item_name} × {item.quantity}</span>
+                            <PayerBadge value={item.paid_by} />
+                          </div>
+                        ))}
+                      </td>
                       <td className="p-3 whitespace-nowrap">{money(purchase.goods_total_usd)}</td>
                       <td className="p-3">
                         {purchase.fees.length > 0
-                          ? purchase.fees.map((f, i) => <div key={i} className="text-xs text-gray-400">{f.name}: {money(f.amount_usd)}</div>)
+                          ? purchase.fees.map((f, i) => (
+                              <div key={i} className="flex items-center gap-1.5 text-xs text-gray-400 mb-0.5">
+                                <span>{f.name}: {money(f.amount_usd)}</span>
+                                <PayerBadge value={f.paid_by} />
+                              </div>
+                            ))
                           : <span className="text-gray-600">—</span>}
                       </td>
                       <td className="p-3 whitespace-nowrap font-semibold">{money(purchase.total_cost_usd)}</td>
@@ -406,8 +512,8 @@ export default function ShopAdminPage() {
                         <button onClick={() => {
                           setEditingPurchaseId(purchase.id);
                           setPurchaseMeta({ supplier: purchase.supplier ?? "", status: purchase.status, purchase_date: purchase.purchase_date ?? purchase.created_at.slice(0, 10), notes: purchase.notes ?? "" });
-                          setPurchaseItems(purchase.items.map((item) => ({ item_name: item.item_name, quantity: item.quantity, unit_cost_usd: item.unit_cost_usd, total_cost_usd: item.total_cost_usd })));
-                          setPurchaseFees(purchase.fees.map((f) => ({ name: f.name, amount_usd: f.amount_usd })));
+                          setPurchaseItems(purchase.items.map((item) => ({ item_name: item.item_name, quantity: item.quantity, unit_cost_usd: item.unit_cost_usd, total_cost_usd: item.total_cost_usd, paid_by: item.paid_by ?? null })));
+                          setPurchaseFees(purchase.fees.map((f) => ({ name: f.name, amount_usd: f.amount_usd, paid_by: f.paid_by ?? null })));
                           setTab("purchases");
                         }} className="text-yellow-400">Edit</button>
                         <button onClick={async () => { await deleteShopPurchase(purchase.id); await loadAll(); }} className="text-red-400">Delete</button>
