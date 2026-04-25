@@ -1,8 +1,8 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, Float, Integer, String, Text, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import DateTime, Enum, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 
@@ -27,31 +27,63 @@ class Purchase(Base):
     __tablename__ = "purchases"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    item_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    quantity: Mapped[int] = mapped_column(Integer, nullable=False)
-    unit_cost_usd: Mapped[float] = mapped_column(Float, nullable=False)
-    total_cost_usd: Mapped[float] = mapped_column(Float, nullable=False)
-    transport_cost_usd: Mapped[float] = mapped_column(Float, default=0, nullable=False)
-    commission_cost_usd: Mapped[float] = mapped_column(Float, default=0, nullable=False)
     supplier: Mapped[str | None] = mapped_column(String(255), nullable=True)
     status: Mapped[PurchaseStatus] = mapped_column(Enum(PurchaseStatus), default=PurchaseStatus.paid, nullable=False)
+    transport_cost_usd: Mapped[float] = mapped_column(Float, default=0, nullable=False)
+    commission_cost_usd: Mapped[float] = mapped_column(Float, default=0, nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     inventory_applied: Mapped[bool] = mapped_column(default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    items: Mapped[list["PurchaseItem"]] = relationship(
+        back_populates="purchase",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+
+class PurchaseItem(Base):
+    __tablename__ = "purchase_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    purchase_id: Mapped[int] = mapped_column(ForeignKey("purchases.id", ondelete="CASCADE"), nullable=False)
+    item_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    unit_cost_usd: Mapped[float] = mapped_column(Float, nullable=False)
+    total_cost_usd: Mapped[float] = mapped_column(Float, nullable=False)
+
+    purchase: Mapped[Purchase] = relationship(back_populates="items")
 
 
 class Sale(Base):
     __tablename__ = "sales"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    customer_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    customer_contact: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    total_price_usd: Mapped[float] = mapped_column(Float, default=0, nullable=False)
+    cogs_usd: Mapped[float] = mapped_column(Float, default=0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    items: Mapped[list["SaleItem"]] = relationship(
+        back_populates="sale",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+
+class SaleItem(Base):
+    __tablename__ = "sale_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    sale_id: Mapped[int] = mapped_column(ForeignKey("sales.id", ondelete="CASCADE"), nullable=False)
     item_name: Mapped[str] = mapped_column(String(255), nullable=False)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
     unit_price_usd: Mapped[float] = mapped_column(Float, nullable=False)
     total_price_usd: Mapped[float] = mapped_column(Float, nullable=False)
-    customer_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    customer_contact: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     cogs_usd: Mapped[float] = mapped_column(Float, default=0, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    sale: Mapped[Sale] = relationship(back_populates="items")

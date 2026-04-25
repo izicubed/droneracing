@@ -135,12 +135,18 @@ export interface ShopDashboard {
   purchases_usd: number;
 }
 
-export interface ShopPurchase {
-  id: number;
+export interface ShopPurchaseItem {
+  id?: number;
   item_name: string;
   quantity: number;
   unit_cost_usd: number;
   total_cost_usd: number;
+}
+
+export interface ShopPurchase {
+  id: number;
+  items: ShopPurchaseItem[];
+  goods_total_usd: number;
   transport_cost_usd: number;
   commission_cost_usd: number;
   supplier: string | null;
@@ -150,11 +156,18 @@ export interface ShopPurchase {
   updated_at: string;
 }
 
-export interface ShopSale {
-  id: number;
+export interface ShopSaleItem {
+  id?: number;
   item_name: string;
   quantity: number;
   unit_price_usd: number;
+  total_price_usd: number;
+  cogs_usd?: number;
+}
+
+export interface ShopSale {
+  id: number;
+  items: ShopSaleItem[];
   total_price_usd: number;
   customer_name: string;
   customer_contact: string | null;
@@ -181,11 +194,11 @@ export function getShopSales(): Promise<ShopSale[]> {
   return api.get("/admin/shop/sales");
 }
 
-export function createShopSale(data: Omit<ShopSale, "id" | "created_at" | "updated_at" | "cogs_usd">): Promise<ShopSale> {
+export function createShopSale(data: { items: ShopSaleItem[]; customer_name: string; customer_contact?: string; notes?: string }): Promise<ShopSale> {
   return api.authPost("/admin/shop/sales", data);
 }
 
-export function updateShopSale(id: number, data: Omit<ShopSale, "id" | "created_at" | "updated_at" | "cogs_usd">): Promise<ShopSale> {
+export function updateShopSale(id: number, data: { items: ShopSaleItem[]; customer_name: string; customer_contact?: string; notes?: string }): Promise<ShopSale> {
   return request(`/admin/shop/sales/${id}`, { method: "PATCH", body: JSON.stringify(data), headers: authHeader() });
 }
 
@@ -197,11 +210,11 @@ export function getShopPurchases(): Promise<ShopPurchase[]> {
   return api.get("/admin/shop/purchases");
 }
 
-export function createShopPurchase(data: Omit<ShopPurchase, "id" | "created_at" | "updated_at">): Promise<ShopPurchase> {
+export function createShopPurchase(data: { items: ShopPurchaseItem[]; transport_cost_usd: number; commission_cost_usd: number; supplier?: string; status: "paid" | "in_transit" | "completed"; notes?: string }): Promise<ShopPurchase> {
   return api.authPost("/admin/shop/purchases", data);
 }
 
-export function updateShopPurchase(id: number, data: Omit<ShopPurchase, "id" | "created_at" | "updated_at">): Promise<ShopPurchase> {
+export function updateShopPurchase(id: number, data: { items: ShopPurchaseItem[]; transport_cost_usd: number; commission_cost_usd: number; supplier?: string; status: "paid" | "in_transit" | "completed"; notes?: string }): Promise<ShopPurchase> {
   return request(`/admin/shop/purchases/${id}`, { method: "PATCH", body: JSON.stringify(data), headers: authHeader() });
 }
 
