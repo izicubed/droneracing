@@ -1,15 +1,33 @@
 // Module-level singletons — survive re-renders, one AudioContext per tab
 let actx: AudioContext | null = null;
 const audioBuffers: Record<string, AudioBuffer> = {};
+let audioUnlocked = false;
 
 function getCtx() {
   if (!actx) actx = new AudioContext();
   return actx;
 }
 
-export async function loadBuffers() {
+async function ensureAudioReady() {
   const ctx = getCtx();
-  if (ctx.state === "suspended") await ctx.resume();
+  if (ctx.state !== "running") {
+    await ctx.resume();
+  }
+
+  if (!audioUnlocked) {
+    const buf = ctx.createBuffer(1, 1, ctx.sampleRate);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    src.start(0);
+    audioUnlocked = true;
+  }
+
+  return ctx;
+}
+
+export async function loadBuffers() {
+  const ctx = await ensureAudioReady();
   for (const src of ["/audio/stage.mp3", "/audio/buzzer.mp3"]) {
     if (audioBuffers[src]) continue;
     try {
@@ -20,9 +38,7 @@ export async function loadBuffers() {
 }
 
 export async function playBuffer(src: string) {
-  const ctx = getCtx();
-  // iOS Safari: AudioContext уходит в suspended после паузы — resume() перед каждым воспроизведением
-  if (ctx.state === "suspended") await ctx.resume();
+  const ctx = await ensureAudioReady();
   const buf = audioBuffers[src];
   if (!buf) return;
   const n = ctx.createBufferSource();
@@ -33,9 +49,7 @@ export async function playBuffer(src: string) {
 
 export async function playClick() {
   try {
-    const ctx = getCtx();
-    // iOS Safari: resume перед воспроизведением
-    if (ctx.state === "suspended") await ctx.resume();
+    const ctx = await ensureAudioReady();
     const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.015), ctx.sampleRate);
     const d = buf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length) * 0.12;
@@ -47,5 +61,5 @@ export async function playClick() {
 }
 
 export function useAudio() {
-  return { getCtx, loadBuffers, playBuffer, playClick };
+  return { getCtx, loadBuffers, playBuffer, playClick, ensureAudioReady };
 }

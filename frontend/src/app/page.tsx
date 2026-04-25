@@ -63,7 +63,7 @@ function UserButton({ pilot, onClick }: { pilot: PilotInfo | null; onClick: () =
 }
 
 export default function Home() {
-  const { getCtx, loadBuffers, playBuffer, playClick } = useAudio();
+  const { getCtx, loadBuffers, playBuffer, playClick, ensureAudioReady } = useAudio();
 
   const [countdownSec, setCountdownSec] = useState(() => {
     try { const v = localStorage.getItem("fpv_countdownSec"); return v ? Number(v) : 5; } catch { return 5; }
@@ -127,6 +127,7 @@ export default function Home() {
 
   async function handleRingTap() {
     // iOS: resume AudioContext строго в user gesture, до любых await
+    await ensureAudioReady();
     const ctx = getCtx();
     if (ctx.state === "suspended") await ctx.resume();
     await playClick();
