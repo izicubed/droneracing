@@ -1,7 +1,7 @@
 import enum
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import DateTime, Enum, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Date, DateTime, Enum, Float, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -29,14 +29,18 @@ class Purchase(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     supplier: Mapped[str | None] = mapped_column(String(255), nullable=True)
     status: Mapped[PurchaseStatus] = mapped_column(Enum(PurchaseStatus), default=PurchaseStatus.paid, nullable=False)
-    transport_cost_usd: Mapped[float] = mapped_column(Float, default=0, nullable=False)
-    commission_cost_usd: Mapped[float] = mapped_column(Float, default=0, nullable=False)
+    purchase_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     inventory_applied: Mapped[bool] = mapped_column(default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
     items: Mapped[list["PurchaseItem"]] = relationship(
+        back_populates="purchase",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    fees: Mapped[list["PurchaseFee"]] = relationship(
         back_populates="purchase",
         cascade="all, delete-orphan",
         lazy="selectin",
@@ -56,6 +60,17 @@ class PurchaseItem(Base):
     purchase: Mapped[Purchase] = relationship(back_populates="items")
 
 
+class PurchaseFee(Base):
+    __tablename__ = "purchase_fees"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    purchase_id: Mapped[int] = mapped_column(ForeignKey("purchases.id", ondelete="CASCADE"), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    amount_usd: Mapped[float] = mapped_column(Float, default=0, nullable=False)
+
+    purchase: Mapped[Purchase] = relationship(back_populates="fees")
+
+
 class Sale(Base):
     __tablename__ = "sales"
 
@@ -65,6 +80,7 @@ class Sale(Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     total_price_usd: Mapped[float] = mapped_column(Float, default=0, nullable=False)
     cogs_usd: Mapped[float] = mapped_column(Float, default=0, nullable=False)
+    sale_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 

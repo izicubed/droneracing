@@ -14,6 +14,8 @@ import asyncio
 import hashlib
 import logging
 import os
+import shlex
+import tempfile
 from contextlib import suppress
 
 import httpx
@@ -101,27 +103,34 @@ async def _send_via_openclaw(text: str) -> bool:
         logger.warning("OpenClaw notifier disabled: missing cli_path/target/channel")
         return False
 
-    cmd = [
-        cli_path,
-        "message",
-        "send",
-        "--channel", channel,
-        "--target", target,
-        "--message", text,
-        "--silent",
-        "--json",
-    ]
-    if account:
-        cmd.extend(["--account", account])
-
+    temp_path = None
     try:
         env = os.environ.copy()
-        env.setdefault("LANG", "C.UTF-8")
-        env.setdefault("LC_ALL", "C.UTF-8")
-        env.setdefault("PYTHONUTF8", "1")
-        env.setdefault("PYTHONIOENCODING", "utf-8")
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
+        env["LANG"] = "C.UTF-8"
+        env["LC_ALL"] = "C.UTF-8"
+        env["PYTHONUTF8"] = "1"
+        env["PYTHONIOENCODING"] = "utf-8"
+
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False) as f:
+            f.write(text)
+            temp_path = f.name
+
+        parts = [
+            shlex.quote(cli_path),
+            "message",
+            "send",
+            "--channel", shlex.quote(channel),
+            "--target", shlex.quote(target),
+            "--message", '"$(cat ' + shlex.quote(temp_path) + ')"',
+            "--silent",
+            "--json",
+        ]
+        if account:
+            parts.extend(["--account", shlex.quote(account)])
+        cmd = " ".join(parts)
+
+        proc = await asyncio.create_subprocess_shell(
+            cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             env=env,
@@ -143,6 +152,10 @@ async def _send_via_openclaw(text: str) -> bool:
     except Exception as exc:
         logger.error("OpenClaw notify error: %s", exc, exc_info=True)
         return False
+    finally:
+        if temp_path:
+            with suppress(OSError):
+                os.unlink(temp_path)
 
 
 async def _send_via_bot_api(text: str) -> bool:
