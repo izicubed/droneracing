@@ -94,7 +94,7 @@ export function useTimer({ onRaceStopped, playBuffer }: UseTimerOptions) {
       if (abortRef.current) return;
       setPhase("BEEP");
       setBeep({ n: i, total: bCount });
-      playBuffer("/audio/stage.mp3");
+      await playBuffer("/audio/stage.mp3");
       await sleep(1000);
     }
 
@@ -108,7 +108,7 @@ export function useTimer({ onRaceStopped, playBuffer }: UseTimerOptions) {
     await sleep(delayMs);
 
     if (abortRef.current) return;
-    playBuffer("/audio/buzzer.mp3");
+    await playBuffer("/audio/buzzer.mp3");
     setPhase("GO");
     await sleep(800);
 

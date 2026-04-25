@@ -128,8 +128,8 @@ export default function Home() {
   async function handleRingTap() {
     // iOS: resume AudioContext строго в user gesture, до любых await
     const ctx = getCtx();
-    if (ctx.state === "suspended") ctx.resume();
-    playClick();
+    if (ctx.state === "suspended") await ctx.resume();
+    await playClick();
     await loadBuffers();
     if (timer.phase === "IDLE" || timer.phase === "STOPPED") {
       timer.setElapsed(0);
