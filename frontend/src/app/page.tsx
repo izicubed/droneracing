@@ -201,6 +201,14 @@ export default function Home() {
       <div className="w-full flex items-center justify-between">
         <p className="text-xs text-zinc-600 uppercase tracking-[0.2em]">FPV Timer</p>
         <div className="flex items-center gap-2">
+          {isShopAdmin && (
+            <a
+              href="/shop-admin"
+              className="text-[10px] text-emerald-500 border border-emerald-500/40 rounded px-2 py-1 uppercase tracking-widest hover:bg-emerald-500/10 active:scale-90 transition"
+            >
+              Shop
+            </a>
+          )}
           {isSuperadmin && (
             <button
               onClick={() => setShowAdmin(true)}
