@@ -54,6 +54,64 @@ const emptyFee = (): ShopPurchaseFee => ({ name: "", amount_usd: 0, paid_by: nul
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
+function ProfitModal({ sale, onClose }: { sale: ShopSale; onClose: () => void }) {
+  const profit = sale.total_price_usd - sale.cogs_usd;
+  const margin = sale.total_price_usd > 0 ? (profit / sale.total_price_usd) * 100 : 0;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
+      <div className="w-full max-w-md bg-gray-900 border border-gray-700 rounded-2xl p-5 space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-lg">Profit breakdown</h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-300 text-sm">Close</button>
+        </div>
+        <div className="text-sm text-gray-400">{sale.customer_name}{sale.sale_date ? ` · ${fmt(sale.sale_date)}` : ""}</div>
+
+        {/* Per-item breakdown */}
+        {sale.items.length > 0 && (
+          <div className="space-y-1">
+            <div className="grid grid-cols-4 gap-2 text-[11px] uppercase tracking-wider text-gray-600 pb-1 border-b border-gray-800">
+              <span className="col-span-2">Item</span><span className="text-right">Revenue</span><span className="text-right">Cost</span>
+            </div>
+            {sale.items.map((item, i) => {
+              const itemProfit = item.total_price_usd - (item.cogs_usd ?? 0);
+              return (
+                <div key={i} className="grid grid-cols-4 gap-2 text-sm items-center">
+                  <span className="col-span-2 text-gray-300">{item.item_name} ×{item.quantity}</span>
+                  <span className="text-right text-gray-200">{money(item.total_price_usd)}</span>
+                  <span className="text-right text-gray-400">{item.cogs_usd != null ? money(item.cogs_usd) : "—"}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Fees */}
+        {sale.fees.length > 0 && (
+          <div className="space-y-1 border-t border-gray-800 pt-3">
+            <div className="text-[11px] uppercase tracking-wider text-gray-600 mb-1">Service fees</div>
+            {sale.fees.map((f, i) => (
+              <div key={i} className="flex justify-between text-sm">
+                <span className="text-gray-400">{f.name}</span>
+                <span className="text-gray-200">{money(f.amount_usd)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Summary */}
+        <div className="border-t border-gray-700 pt-3 space-y-1.5 text-sm">
+          <div className="flex justify-between text-gray-300"><span>Total revenue</span><span>{money(sale.total_price_usd)}</span></div>
+          <div className="flex justify-between text-gray-400"><span>COGS</span><span>−{money(sale.cogs_usd)}</span></div>
+          <div className={`flex justify-between font-bold text-base pt-1 border-t border-gray-800 ${profit >= 0 ? "text-green-400" : "text-red-400"}`}>
+            <span>Profit</span>
+            <span>{money(profit)} <span className="text-sm font-normal opacity-70">({margin.toFixed(1)}%)</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const inputCls = "w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm";
 const labelCls = "block text-xs text-gray-400 mb-1";
 
@@ -107,6 +165,7 @@ export default function ShopAdminPage() {
     customer_name: "", customer_contact: "", sale_date: todayISO(), notes: "", received_by: null as Payer | null,
   });
   const [editingSaleId, setEditingSaleId] = useState<number | null>(null);
+  const [profitSale, setProfitSale] = useState<ShopSale | null>(null);
 
   // ----- purchase form state -----
   const [purchaseItems, setPurchaseItems] = useState<ShopPurchaseItem[]>([emptyPurchaseItem()]);
@@ -306,8 +365,8 @@ export default function ShopAdminPage() {
                     <input placeholder="Item name" value={item.item_name} onChange={(e) => updateSaleItem(index, { item_name: e.target.value })} className={inputCls} />
                     <div className="grid grid-cols-3 gap-2">
                       <div><label className={labelCls}>Qty</label><input type="number" min={1} value={item.quantity} onChange={(e) => updateSaleItem(index, { quantity: Number(e.target.value) })} className={inputCls} /></div>
-                      <div><label className={labelCls}>Unit $</label><input type="text" inputMode="decimal" defaultValue={item.unit_price_usd} key={`su-${index}-${editingSaleId}`} onBlur={(e) => updateSaleItem(index, { unit_price_usd: parseAmount(e.target.value) })} className={inputCls} placeholder="0.00" /></div>
-                      <div><label className={labelCls}>Total $</label><input type="text" inputMode="decimal" defaultValue={item.total_price_usd} key={`st-${index}-${editingSaleId}`} onBlur={(e) => updateSaleItem(index, { total_price_usd: parseAmount(e.target.value) })} className={inputCls} placeholder="0.00" /></div>
+                      <div><label className={labelCls}>Unit $</label><input type="text" inputMode="decimal" defaultValue={item.unit_price_usd || ""} key={`su-${index}-${editingSaleId}`} onBlur={(e) => updateSaleItem(index, { unit_price_usd: parseAmount(e.target.value) })} className={inputCls} placeholder="0.00" /></div>
+                      <div><label className={labelCls}>Total $</label><input type="text" readOnly value={item.total_price_usd.toFixed(2)} className={`${inputCls} text-yellow-400 cursor-default`} /></div>
                     </div>
                   </div>
                 ))}
@@ -375,6 +434,7 @@ export default function ShopAdminPage() {
                       <td className="p-3"><PayerBadge value={sale.received_by} /></td>
                       <td className="p-3 whitespace-nowrap text-gray-400">{fmt(sale.sale_date ?? sale.created_at)}</td>
                       <td className="pr-3 p-3 text-right space-x-2 whitespace-nowrap">
+                        <button onClick={() => setProfitSale(sale)} className="text-green-400">Profit</button>
                         <button onClick={() => {
                           setEditingSaleId(sale.id);
                           setSaleMeta({ customer_name: sale.customer_name, customer_contact: sale.customer_contact ?? "", sale_date: sale.sale_date ?? sale.created_at.slice(0, 10), notes: sale.notes ?? "", received_by: sale.received_by });
@@ -434,8 +494,8 @@ export default function ShopAdminPage() {
                     <input placeholder="Item name" value={item.item_name} onChange={(e) => updatePurchaseItem(index, { item_name: e.target.value })} className={inputCls} />
                     <div className="grid grid-cols-3 gap-2">
                       <div><label className={labelCls}>Qty</label><input type="number" min={1} value={item.quantity} onChange={(e) => updatePurchaseItem(index, { quantity: Number(e.target.value) })} className={inputCls} /></div>
-                      <div><label className={labelCls}>Unit $</label><input type="text" inputMode="decimal" defaultValue={item.unit_cost_usd} key={`pu-${index}-${editingPurchaseId}`} onBlur={(e) => updatePurchaseItem(index, { unit_cost_usd: parseAmount(e.target.value) })} className={inputCls} placeholder="0.00" /></div>
-                      <div><label className={labelCls}>Total $</label><input type="text" inputMode="decimal" defaultValue={item.total_cost_usd} key={`pt-${index}-${editingPurchaseId}`} onBlur={(e) => updatePurchaseItem(index, { total_cost_usd: parseAmount(e.target.value) })} className={inputCls} placeholder="0.00" /></div>
+                      <div><label className={labelCls}>Unit $</label><input type="text" inputMode="decimal" defaultValue={item.unit_cost_usd || ""} key={`pu-${index}-${editingPurchaseId}`} onBlur={(e) => updatePurchaseItem(index, { unit_cost_usd: parseAmount(e.target.value) })} className={inputCls} placeholder="0.00" /></div>
+                      <div><label className={labelCls}>Total $</label><input type="text" readOnly value={item.total_cost_usd.toFixed(2)} className={`${inputCls} text-yellow-400 cursor-default`} /></div>
                     </div>
                     <div className="flex items-center gap-2">
                       <label className="text-xs text-gray-400">Paid by</label>
@@ -600,6 +660,8 @@ export default function ShopAdminPage() {
         )}
 
       </div>
+
+      {profitSale && <ProfitModal sale={profitSale} onClose={() => setProfitSale(null)} />}
     </main>
   );
 }

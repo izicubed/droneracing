@@ -106,6 +106,7 @@ export default function Home() {
   // Auth / profile state
   const [pilot, setPilot] = useState<PilotInfo | null>(null);
   const [isSuperadmin, setIsSuperadmin] = useState(false);
+  const [isShopAdmin, setIsShopAdmin] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
@@ -115,7 +116,10 @@ export default function Home() {
   useEffect(() => {
     if (!getToken()) return;
     api.get<PilotInfo>("/pilots/me").then(setPilot).catch(() => {});
-    getMe().then(u => setIsSuperadmin(u.role === "superadmin")).catch(() => {});
+    getMe().then(u => {
+      setIsSuperadmin(u.role === "superadmin");
+      setIsShopAdmin(u.role === "admin" || u.role === "superadmin");
+    }).catch(() => {});
   }, []);
 
   const timer = useTimer({
@@ -165,7 +169,10 @@ export default function Home() {
 
   function handleAuthSuccess() {
     setShowAuth(false);
-    getMe().then(u => setIsSuperadmin(u.role === "superadmin")).catch(() => {});
+    getMe().then(u => {
+      setIsSuperadmin(u.role === "superadmin");
+      setIsShopAdmin(u.role === "admin" || u.role === "superadmin");
+    }).catch(() => {});
     api.get<PilotInfo>("/pilots/me")
       .then(p => { setPilot(p); setShowProfile(false); })
       .catch(() => setShowProfile(true));
@@ -331,7 +338,7 @@ export default function Home() {
       {showProfile && (
         <ProfileModal
           onClose={() => setShowProfile(false)}
-          onLogout={() => { setPilot(null); setIsSuperadmin(false); setSaveStatus("idle"); }}
+          onLogout={() => { setPilot(null); setIsSuperadmin(false); setIsShopAdmin(false); setSaveStatus("idle"); }}
           onPilotUpdated={p => setPilot(p)}
         />
       )}
