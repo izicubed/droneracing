@@ -7,6 +7,7 @@ Create Date: 2026-04-25 00:20:00.000000
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 
 revision = 'a7b8c9d0e1f2'
@@ -15,7 +16,7 @@ branch_labels = None
 depends_on = None
 
 
-purchase_status = sa.Enum('paid', 'in_transit', 'completed', name='purchasestatus')
+purchase_status = postgresql.ENUM('paid', 'in_transit', 'completed', name='purchasestatus', create_type=False)
 
 
 def upgrade() -> None:
