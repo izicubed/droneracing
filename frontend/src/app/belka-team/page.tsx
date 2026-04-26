@@ -204,53 +204,48 @@ const scheduleDays: Record<DayKey, ScheduleDay> = {
   },
 };
 
-// ─── Expenses data (Монголия.md, 16.04.2026) ─────────────────────────────────
-const expensesData = [
-  {
-    id: 1,
-    category: "Оборудование",
-    description: "Raspberry Pi 4",
-    paidBy: "Женя (Alias)",
-    amount: 250,
-    currency: "BYN",
-  },
-  {
-    id: 2,
-    category: "Оборудование",
-    description: "Комплект для сборки засечки",
-    paidBy: "Коля (Cubed)",
-    amount: 85.7,
-    currency: "BYN",
-    note: "~3000 RUB по курсу 35 RUB/BYN",
-  },
-  {
-    id: 3,
-    category: "Доставка",
-    description: "Отправка засечки в Алма-Аты",
-    paidBy: "Женя (Alias)",
-    amount: 60,
-    currency: "BYN",
-  },
-  {
-    id: 4,
-    category: "Оборудование",
-    description: "NuclearHazard — 4 приёмника",
-    paidBy: "Коля (Cubed)",
-    amount: 400,
-    currency: "USD",
-  },
+// ─── Expenses data ────────────────────────────────────────────────────────────
+type Expense = {
+  id: number;
+  category: string;
+  description: string;
+  paidBy: string;
+  amount: number;
+  currency: "BYN" | "USD";
+  note?: string;
+};
+
+const INITIAL_EXPENSES: Expense[] = [
+  { id: 1, category: "Оборудование", description: "Raspberry Pi 4", paidBy: "Женя (Alias)", amount: 250, currency: "BYN" },
+  { id: 2, category: "Оборудование", description: "Комплект для сборки засечки", paidBy: "Коля (Cubed)", amount: 85.7, currency: "BYN", note: "~3000 RUB по курсу 35 RUB/BYN" },
+  { id: 3, category: "Доставка", description: "Отправка засечки в Алма-Аты", paidBy: "Женя (Alias)", amount: 60, currency: "BYN" },
+  { id: 4, category: "Оборудование", description: "NuclearHazard — 4 приёмника", paidBy: "Коля (Cubed)", amount: 400, currency: "USD" },
 ];
 
-const balance = [
-  { name: "Женя (Alias)", paidBYN: 310, paidUSD: 0, color: "text-blue-400" },
-  { name: "Коля (Cubed)", paidBYN: 85.7, paidUSD: 400, color: "text-[oklch(69.6%_0.17_162.48)]" },
-  { name: "Андрей (Tisha)", paidBYN: 0, paidUSD: 0, color: "text-zinc-400" },
+const STORAGE_KEY = "belka_expenses_mongolia";
+
+const MEMBERS = [
+  { name: "Женя (Alias)",   color: "text-blue-400" },
+  { name: "Коля (Cubed)",   color: "text-[oklch(69.6%_0.17_162.48)]" },
+  { name: "Андрей (Tisha)", color: "text-zinc-400" },
 ];
+
+const CATEGORIES = ["Оборудование", "Доставка", "Прочее"];
 
 const categoryColors: Record<string, string> = {
   Оборудование: "bg-yellow-500/20 text-yellow-400",
-  Доставка: "bg-blue-500/20 text-blue-400",
+  Доставка:     "bg-blue-500/20 text-blue-400",
+  Прочее:       "bg-zinc-700 text-zinc-400",
 };
+
+const emptyForm = (): Omit<Expense, "id"> => ({
+  category: "Оборудование",
+  description: "",
+  paidBy: MEMBERS[0].name,
+  amount: 0,
+  currency: "BYN",
+  note: "",
+});
 
 // ─── Login screen ─────────────────────────────────────────────────────────────
 function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
@@ -436,33 +431,154 @@ function ScheduleTab() {
 
 // ─── Expenses tab ─────────────────────────────────────────────────────────────
 function ExpensesTab() {
-  const totalBYN = expensesData.filter(e => e.currency === "BYN").reduce((s, e) => s + e.amount, 0);
-  const totalUSD = expensesData.filter(e => e.currency === "USD").reduce((s, e) => s + e.amount, 0);
+  const [expenses, setExpenses] = useState<Expense[]>(() => {
+    if (typeof window === "undefined") return INITIAL_EXPENSES;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? (JSON.parse(saved) as Expense[]) : INITIAL_EXPENSES;
+    } catch {
+      return INITIAL_EXPENSES;
+    }
+  });
+
+  const [form, setForm] = useState(emptyForm());
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [showForm, setShowForm] = useState(false);
+
+  function save(updated: Expense[]) {
+    setExpenses(updated);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  }
+
+  function handleAdd() {
+    if (!form.description.trim() || form.amount <= 0) return;
+    const nextId = expenses.length > 0 ? Math.max(...expenses.map(e => e.id)) + 1 : 1;
+    save([...expenses, { ...form, id: nextId, note: form.note?.trim() || undefined }]);
+    setForm(emptyForm());
+    setShowForm(false);
+  }
+
+  function handleEdit(e: Expense) {
+    setEditingId(e.id);
+    setForm({ category: e.category, description: e.description, paidBy: e.paidBy, amount: e.amount, currency: e.currency, note: e.note ?? "" });
+    setShowForm(true);
+  }
+
+  function handleUpdate() {
+    if (!form.description.trim() || form.amount <= 0) return;
+    save(expenses.map(e => e.id === editingId ? { ...e, ...form, note: form.note?.trim() || undefined } : e));
+    setEditingId(null);
+    setForm(emptyForm());
+    setShowForm(false);
+  }
+
+  function handleDelete(id: number) {
+    save(expenses.filter(e => e.id !== id));
+  }
+
+  function cancelForm() {
+    setEditingId(null);
+    setForm(emptyForm());
+    setShowForm(false);
+  }
+
+  const totalBYN = expenses.filter(e => e.currency === "BYN").reduce((s, e) => s + e.amount, 0);
+  const totalUSD = expenses.filter(e => e.currency === "USD").reduce((s, e) => s + e.amount, 0);
+
+  const inCls = "bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-[oklch(69.6%_0.17_162.48)] transition w-full";
 
   return (
     <div className="max-w-2xl mx-auto">
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-black text-white">Расходы — Монголия</h2>
-        <div className="text-right">
-          <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Итого</p>
-          <p className="text-[oklch(69.6%_0.17_162.48)] font-black text-base tabular-nums leading-tight">
-            {totalBYN.toFixed(1)} BYN
-          </p>
-          {totalUSD > 0 && (
-            <p className="text-green-400 font-black text-base tabular-nums leading-tight">
-              {totalUSD.toFixed(0)} USD
+        <div className="flex items-start gap-4">
+          <div className="text-right">
+            <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Итого</p>
+            <p className="text-[oklch(69.6%_0.17_162.48)] font-black text-base tabular-nums leading-tight">
+              {totalBYN.toFixed(1)} BYN
             </p>
+            {totalUSD > 0 && (
+              <p className="text-green-400 font-black text-base tabular-nums leading-tight">
+                ${totalUSD.toFixed(0)} USD
+              </p>
+            )}
+          </div>
+          {!showForm && (
+            <button
+              onClick={() => { setEditingId(null); setForm(emptyForm()); setShowForm(true); }}
+              className="px-3 py-1.5 rounded-lg bg-[oklch(69.6%_0.17_162.48)]/15 border border-[oklch(69.6%_0.17_162.48)]/30 text-[oklch(69.6%_0.17_162.48)] text-xs font-bold hover:bg-[oklch(69.6%_0.17_162.48)]/25 transition"
+            >
+              + Добавить
+            </button>
           )}
         </div>
       </div>
 
+      {/* Add / Edit form */}
+      {showForm && (
+        <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-4 mb-5 space-y-3">
+          <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest">
+            {editingId ? "Редактировать позицию" : "Новая позиция"}
+          </p>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-[10px] text-zinc-500 uppercase tracking-widest block mb-1">Категория</label>
+              <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className={inCls}>
+                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] text-zinc-500 uppercase tracking-widest block mb-1">Оплатил</label>
+              <select value={form.paidBy} onChange={e => setForm({ ...form, paidBy: e.target.value })} className={inCls}>
+                {MEMBERS.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[10px] text-zinc-500 uppercase tracking-widest block mb-1">Описание</label>
+            <input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className={inCls} placeholder="Что куплено / оплачено" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-[10px] text-zinc-500 uppercase tracking-widest block mb-1">Сумма</label>
+              <input type="number" min={0} step="0.01" value={form.amount || ""} onChange={e => setForm({ ...form, amount: parseFloat(e.target.value) || 0 })} className={inCls} placeholder="0.00" />
+            </div>
+            <div>
+              <label className="text-[10px] text-zinc-500 uppercase tracking-widest block mb-1">Валюта</label>
+              <select value={form.currency} onChange={e => setForm({ ...form, currency: e.target.value as "BYN" | "USD" })} className={inCls}>
+                <option value="BYN">BYN</option>
+                <option value="USD">USD</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[10px] text-zinc-500 uppercase tracking-widest block mb-1">Примечание (необязательно)</label>
+            <input value={form.note ?? ""} onChange={e => setForm({ ...form, note: e.target.value })} className={inCls} placeholder="Доп. инфо" />
+          </div>
+
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={editingId ? handleUpdate : handleAdd}
+              className="px-4 py-2 rounded-lg bg-[oklch(69.6%_0.17_162.48)] text-zinc-950 font-black text-xs"
+            >
+              {editingId ? "Сохранить" : "Добавить"}
+            </button>
+            <button onClick={cancelForm} className="px-4 py-2 rounded-lg border border-zinc-700 text-zinc-400 text-xs">
+              Отмена
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Expense list */}
       <div className="flex flex-col gap-2 mb-8">
-        {expensesData.map(e => (
-          <div
-            key={e.id}
-            className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 flex items-start gap-3"
-          >
+        {expenses.map(e => (
+          <div key={e.id} className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 flex items-start gap-3">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${categoryColors[e.category] ?? "bg-zinc-700 text-zinc-400"}`}>
@@ -473,36 +589,45 @@ function ExpensesTab() {
               <p className="text-white text-sm">{e.description}</p>
               {e.note && <p className="text-zinc-600 text-[10px] mt-0.5">{e.note}</p>}
             </div>
-            <span className={`font-black tabular-nums text-sm whitespace-nowrap ${e.currency === "USD" ? "text-green-400" : "text-white"}`}>
-              {e.currency === "USD" ? `$${e.amount.toFixed(0)}` : `${e.amount.toFixed(1)} BYN`}
-            </span>
+            <div className="flex items-center gap-3 shrink-0">
+              <span className={`font-black tabular-nums text-sm whitespace-nowrap ${e.currency === "USD" ? "text-green-400" : "text-white"}`}>
+                {e.currency === "USD" ? `$${e.amount % 1 === 0 ? e.amount.toFixed(0) : e.amount.toFixed(2)}` : `${e.amount.toFixed(1)} BYN`}
+              </span>
+              <div className="flex gap-2 text-[10px]">
+                <button onClick={() => handleEdit(e)} className="text-yellow-400 hover:text-yellow-300 transition">✎</button>
+                <button onClick={() => handleDelete(e.id)} className="text-red-500 hover:text-red-400 transition">✕</button>
+              </div>
+            </div>
           </div>
         ))}
+        {expenses.length === 0 && (
+          <p className="text-zinc-600 text-sm text-center py-6">Нет позиций</p>
+        )}
       </div>
 
-      {/* Balance */}
+      {/* Balance — computed dynamically */}
       <div className="border-t border-zinc-800 pt-6">
         <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-3">Баланс участников</p>
         <div className="flex flex-col gap-2">
-          {balance.map(p => {
-            const hasBYN = p.paidBYN > 0;
-            const hasUSD = p.paidUSD > 0;
-            const isEmpty = !hasBYN && !hasUSD;
+          {MEMBERS.map(member => {
+            const paidBYN = expenses.filter(e => e.paidBy === member.name && e.currency === "BYN").reduce((s, e) => s + e.amount, 0);
+            const paidUSD = expenses.filter(e => e.paidBy === member.name && e.currency === "USD").reduce((s, e) => s + e.amount, 0);
+            const isEmpty = paidBYN === 0 && paidUSD === 0;
             return (
-              <div key={p.name} className="flex items-center justify-between bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3">
-                <span className="text-white text-sm font-bold">{p.name}</span>
+              <div key={member.name} className="flex items-center justify-between bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3">
+                <span className="text-white text-sm font-bold">{member.name}</span>
                 {isEmpty ? (
                   <span className="text-zinc-600 font-black text-sm">—</span>
                 ) : (
                   <div className="text-right">
-                    {hasBYN && (
-                      <p className={`font-black tabular-nums text-sm leading-tight ${p.color}`}>
-                        {p.paidBYN.toFixed(1)} BYN
+                    {paidBYN > 0 && (
+                      <p className={`font-black tabular-nums text-sm leading-tight ${member.color}`}>
+                        {paidBYN.toFixed(1)} BYN
                       </p>
                     )}
-                    {hasUSD && (
+                    {paidUSD > 0 && (
                       <p className="font-black tabular-nums text-sm leading-tight text-green-400">
-                        ${p.paidUSD.toFixed(0)} USD
+                        ${paidUSD % 1 === 0 ? paidUSD.toFixed(0) : paidUSD.toFixed(2)} USD
                       </p>
                     )}
                   </div>
