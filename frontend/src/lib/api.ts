@@ -275,6 +275,35 @@ export function getShopInventory(): Promise<InventoryItem[]> {
   return api.get("/admin/shop/inventory");
 }
 
+export interface IOYRecord {
+  id: number;
+  debtor: Payer;
+  creditor: Payer;
+  item_name: string;
+  quantity: number;
+  ioy_date: string | null;
+  notes: string | null;
+  settled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export function getIOYRecords(): Promise<IOYRecord[]> {
+  return api.get("/admin/shop/ioy");
+}
+
+export function createIOYRecord(data: { debtor: Payer; creditor: Payer; item_name: string; quantity: number; ioy_date?: string | null; notes?: string | null; settled?: boolean }): Promise<IOYRecord> {
+  return api.authPost("/admin/shop/ioy", data);
+}
+
+export function updateIOYRecord(id: number, data: { debtor: Payer; creditor: Payer; item_name: string; quantity: number; ioy_date?: string | null; notes?: string | null; settled?: boolean }): Promise<IOYRecord> {
+  return request(`/admin/shop/ioy/${id}`, { method: "PATCH", body: JSON.stringify(data), headers: authHeader() });
+}
+
+export function deleteIOYRecord(id: number): Promise<void> {
+  return api.authDelete(`/admin/shop/ioy/${id}`);
+}
+
 export async function saveTraining(packCount: number, laps: number[], startedAt?: string): Promise<void> {
   await api.authPost("/sessions/", {
     pack_count: packCount,

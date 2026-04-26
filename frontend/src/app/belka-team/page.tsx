@@ -231,12 +231,20 @@ const expensesData = [
     amount: 60,
     currency: "BYN",
   },
+  {
+    id: 4,
+    category: "Оборудование",
+    description: "NuclearHazard — 4 приёмника",
+    paidBy: "Коля (Cubed)",
+    amount: 400,
+    currency: "USD",
+  },
 ];
 
 const balance = [
-  { name: "Женя (Alias)", paid: 310, color: "text-blue-400" },
-  { name: "Коля (Cubed)", paid: 85.7, color: "text-[oklch(69.6%_0.17_162.48)]" },
-  { name: "Андрей (Tisha)", paid: 0, color: "text-zinc-400" },
+  { name: "Женя (Alias)", paidBYN: 310, paidUSD: 0, color: "text-blue-400" },
+  { name: "Коля (Cubed)", paidBYN: 85.7, paidUSD: 400, color: "text-[oklch(69.6%_0.17_162.48)]" },
+  { name: "Андрей (Tisha)", paidBYN: 0, paidUSD: 0, color: "text-zinc-400" },
 ];
 
 const categoryColors: Record<string, string> = {
@@ -428,17 +436,23 @@ function ScheduleTab() {
 
 // ─── Expenses tab ─────────────────────────────────────────────────────────────
 function ExpensesTab() {
-  const totalBYN = expensesData.reduce((s, e) => s + e.amount, 0);
+  const totalBYN = expensesData.filter(e => e.currency === "BYN").reduce((s, e) => s + e.amount, 0);
+  const totalUSD = expensesData.filter(e => e.currency === "USD").reduce((s, e) => s + e.amount, 0);
 
   return (
     <div className="max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-black text-white">Расходы — Монголия</h2>
         <div className="text-right">
-          <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Итого</p>
-          <p className="text-[oklch(69.6%_0.17_162.48)] font-black text-lg tabular-nums">
+          <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Итого</p>
+          <p className="text-[oklch(69.6%_0.17_162.48)] font-black text-base tabular-nums leading-tight">
             {totalBYN.toFixed(1)} BYN
           </p>
+          {totalUSD > 0 && (
+            <p className="text-green-400 font-black text-base tabular-nums leading-tight">
+              {totalUSD.toFixed(0)} USD
+            </p>
+          )}
         </div>
       </div>
 
@@ -459,8 +473,8 @@ function ExpensesTab() {
               <p className="text-white text-sm">{e.description}</p>
               {e.note && <p className="text-zinc-600 text-[10px] mt-0.5">{e.note}</p>}
             </div>
-            <span className="text-white font-black tabular-nums text-sm whitespace-nowrap">
-              {e.amount.toFixed(1)} BYN
+            <span className={`font-black tabular-nums text-sm whitespace-nowrap ${e.currency === "USD" ? "text-green-400" : "text-white"}`}>
+              {e.currency === "USD" ? `$${e.amount.toFixed(0)}` : `${e.amount.toFixed(1)} BYN`}
             </span>
           </div>
         ))}
@@ -470,14 +484,32 @@ function ExpensesTab() {
       <div className="border-t border-zinc-800 pt-6">
         <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-3">Баланс участников</p>
         <div className="flex flex-col gap-2">
-          {balance.map(p => (
-            <div key={p.name} className="flex items-center justify-between bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3">
-              <span className="text-white text-sm font-bold">{p.name}</span>
-              <span className={`font-black tabular-nums text-sm ${p.paid > 0 ? p.color : "text-zinc-600"}`}>
-                {p.paid > 0 ? `${p.paid.toFixed(1)} BYN` : "—"}
-              </span>
-            </div>
-          ))}
+          {balance.map(p => {
+            const hasBYN = p.paidBYN > 0;
+            const hasUSD = p.paidUSD > 0;
+            const isEmpty = !hasBYN && !hasUSD;
+            return (
+              <div key={p.name} className="flex items-center justify-between bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3">
+                <span className="text-white text-sm font-bold">{p.name}</span>
+                {isEmpty ? (
+                  <span className="text-zinc-600 font-black text-sm">—</span>
+                ) : (
+                  <div className="text-right">
+                    {hasBYN && (
+                      <p className={`font-black tabular-nums text-sm leading-tight ${p.color}`}>
+                        {p.paidBYN.toFixed(1)} BYN
+                      </p>
+                    )}
+                    {hasUSD && (
+                      <p className="font-black tabular-nums text-sm leading-tight text-green-400">
+                        ${p.paidUSD.toFixed(0)} USD
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

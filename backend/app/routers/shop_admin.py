@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.models.shop import InventoryItem, Payer, Purchase, PurchaseFee, PurchaseItem, PurchaseStatus, Sale, SaleFee, SaleItem
+from app.models.shop import IOY, InventoryItem, Payer, Purchase, PurchaseFee, PurchaseItem, PurchaseStatus, Sale, SaleFee, SaleItem
 from app.models.user import User, UserRole
 from app.routers.auth import get_current_user
 
@@ -440,5 +440,69 @@ async def delete_sale(sale_id: int, _: User = Depends(require_shop_admin), db: A
         raise HTTPException(status_code=404, detail="Sale not found")
     await _restore_inventory_from_sale(db, sale)
     await db.delete(sale)
+    await db.commit()
+    return {"ok": True}
+
+
+# ===== IOY =====
+
+class IOYIn(BaseModel):
+    debtor: Payer
+    creditor: Payer
+    item_name: str
+    quantity: int = Field(default=1, gt=0)
+    ioy_date: date | None = None
+    notes: str | None = None
+    settled: bool = False
+
+
+def _ioy_to_dict(ioy: IOY) -> dict:
+    return {
+        "id": ioy.id,
+        "debtor": ioy.debtor,
+        "creditor": ioy.creditor,
+        "item_name": ioy.item_name,
+        "quantity": ioy.quantity,
+        "ioy_date": ioy.ioy_date.isoformat() if ioy.ioy_date else None,
+        "notes": ioy.notes,
+        "settled": ioy.settled,
+        "created_at": ioy.created_at,
+        "updated_at": ioy.updated_at,
+    }
+
+
+@router.get("/ioy")
+async def list_ioy(_: User = Depends(require_shop_admin), db: AsyncSession = Depends(get_db)):
+    rows = (await db.execute(select(IOY).order_by(IOY.created_at.desc()))).scalars().all()
+    return [_ioy_to_dict(row) for row in rows]
+
+
+@router.post("/ioy")
+async def create_ioy(body: IOYIn, _: User = Depends(require_shop_admin), db: AsyncSession = Depends(get_db)):
+    record = IOY(**body.model_dump())
+    db.add(record)
+    await db.commit()
+    await db.refresh(record)
+    return _ioy_to_dict(record)
+
+
+@router.patch("/ioy/{ioy_id}")
+async def update_ioy(ioy_id: int, body: IOYIn, _: User = Depends(require_shop_admin), db: AsyncSession = Depends(get_db)):
+    record = await db.get(IOY, ioy_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="IOY record not found")
+    for field, value in body.model_dump().items():
+        setattr(record, field, value)
+    await db.commit()
+    await db.refresh(record)
+    return _ioy_to_dict(record)
+
+
+@router.delete("/ioy/{ioy_id}")
+async def delete_ioy(ioy_id: int, _: User = Depends(require_shop_admin), db: AsyncSession = Depends(get_db)):
+    record = await db.get(IOY, ioy_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="IOY record not found")
+    await db.delete(record)
     await db.commit()
     return {"ok": True}

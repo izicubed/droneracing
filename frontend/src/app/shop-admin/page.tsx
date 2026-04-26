@@ -13,10 +13,13 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import {
+  createIOYRecord,
   createShopPurchase,
   createShopSale,
+  deleteIOYRecord,
   deleteShopPurchase,
   deleteShopSale,
+  getIOYRecords,
   getMe,
   getShopChartData,
   getShopDashboard,
@@ -24,6 +27,7 @@ import {
   getShopPurchases,
   getShopSales,
   InventoryItem,
+  IOYRecord,
   Payer,
   ShopChartData,
   ShopDashboard,
@@ -33,6 +37,7 @@ import {
   ShopSale,
   ShopSaleFee,
   ShopSaleItem,
+  updateIOYRecord,
   updateShopPurchase,
   updateShopSale,
 } from "@/lib/api";
@@ -45,7 +50,7 @@ const parseAmount = (s: string): number => {
   return isNaN(n) ? 0 : Math.max(0, n);
 };
 
-type Tab = "sales" | "purchases" | "inventory" | "charts";
+type Tab = "sales" | "purchases" | "inventory" | "charts" | "ioy";
 
 const emptySaleItem = (): ShopSaleItem => ({ item_name: "", quantity: 1, unit_price_usd: 0, total_price_usd: 0 });
 const emptySaleFee = (): ShopSaleFee => ({ name: "", amount_usd: 0, received_by: null });
@@ -231,7 +236,13 @@ export default function ShopAdminPage() {
   const [sales, setSales] = useState<ShopSale[]>([]);
   const [purchases, setPurchases] = useState<ShopPurchase[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [ioyRecords, setIoyRecords] = useState<IOYRecord[]>([]);
   const [error, setError] = useState("");
+
+  // ----- IOY form state -----
+  const emptyIOY = () => ({ debtor: "vlad" as Payer, creditor: "cubed" as Payer, item_name: "", quantity: 1, ioy_date: todayISO(), notes: "", settled: false });
+  const [ioyForm, setIoyForm] = useState(emptyIOY());
+  const [editingIOYId, setEditingIOYId] = useState<number | null>(null);
 
   // ----- sale form state -----
   const [saleItems, setSaleItems] = useState<ShopSaleItem[]>([emptySaleItem()]);
@@ -252,9 +263,9 @@ export default function ShopAdminPage() {
   const [editingPurchaseId, setEditingPurchaseId] = useState<number | null>(null);
 
   async function loadAll() {
-    const [me, dash, chart, salesData, purchasesData, inventoryData] = await Promise.all([
+    const [me, dash, chart, salesData, purchasesData, inventoryData, ioyData] = await Promise.all([
       getMe(), getShopDashboard(), getShopChartData(),
-      getShopSales(), getShopPurchases(), getShopInventory(),
+      getShopSales(), getShopPurchases(), getShopInventory(), getIOYRecords(),
     ]);
     if (!["admin", "superadmin"].includes(me.role)) return router.push("/");
     setDashboard(dash);
@@ -262,6 +273,7 @@ export default function ShopAdminPage() {
     setSales(salesData);
     setPurchases(purchasesData);
     setInventory(inventoryData);
+    setIoyRecords(ioyData);
   }
 
   useEffect(() => { loadAll().catch(() => router.push("/")); }, []);
@@ -352,6 +364,25 @@ export default function ShopAdminPage() {
     setPurchaseMeta({ supplier: "", status: "paid", purchase_date: todayISO(), notes: "" });
   }
 
+  async function submitIOY() {
+    setError("");
+    try {
+      const payload = { ...ioyForm, ioy_date: ioyForm.ioy_date || null, notes: ioyForm.notes || null };
+      if (editingIOYId) await updateIOYRecord(editingIOYId, payload);
+      else await createIOYRecord(payload);
+      setIoyForm(emptyIOY());
+      setEditingIOYId(null);
+      await loadAll();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save IOY record");
+    }
+  }
+
+  function cancelIOYEdit() {
+    setEditingIOYId(null);
+    setIoyForm(emptyIOY());
+  }
+
   if (!dashboard) return <main className="min-h-screen bg-gray-950 text-gray-100 p-6">Loading...</main>;
 
   const goodsTotal = purchaseItems.reduce((s, i) => s + i.total_cost_usd, 0);
@@ -390,9 +421,9 @@ export default function ShopAdminPage() {
 
         {/* Tabs */}
         <div className="flex gap-2 flex-wrap">
-          {(["sales", "purchases", "inventory", "charts"] as Tab[]).map((item) => (
+          {(["sales", "purchases", "inventory", "charts", "ioy"] as Tab[]).map((item) => (
             <button key={item} onClick={() => setTab(item)} className={`px-4 py-2 rounded-lg border ${tab === item ? "border-yellow-500 bg-yellow-500/10 text-yellow-400" : "border-gray-800 bg-gray-900 text-gray-300"}`}>
-              {item[0].toUpperCase() + item.slice(1)}
+              {item === "ioy" ? "IOY" : item[0].toUpperCase() + item.slice(1)}
             </button>
           ))}
         </div>
@@ -737,6 +768,104 @@ export default function ShopAdminPage() {
               )}
             </div>
 
+          </section>
+        )}
+
+        {/* ===== IOY TAB ===== */}
+        {tab === "ioy" && (
+          <section className="grid lg:grid-cols-[400px,1fr] gap-6">
+            {/* Form */}
+            <div className="rounded-2xl border border-gray-800 bg-gray-900 p-4 space-y-3">
+              <h2 className="text-lg font-bold">{editingIOYId ? "Edit IOY" : "Add IOY"}</h2>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className={labelCls}>Who owes</label>
+                  <PayerSelect value={ioyForm.debtor} onChange={(v) => setIoyForm({ ...ioyForm, debtor: v ?? "vlad" })} />
+                </div>
+                <div>
+                  <label className={labelCls}>Owes to</label>
+                  <PayerSelect value={ioyForm.creditor} onChange={(v) => setIoyForm({ ...ioyForm, creditor: v ?? "cubed" })} />
+                </div>
+              </div>
+
+              <div>
+                <label className={labelCls}>Item</label>
+                <input value={ioyForm.item_name} onChange={(e) => setIoyForm({ ...ioyForm, item_name: e.target.value })} className={inputCls} placeholder="Item name" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className={labelCls}>Qty</label>
+                  <input type="number" min={1} value={ioyForm.quantity} onChange={(e) => setIoyForm({ ...ioyForm, quantity: Number(e.target.value) })} className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>Date</label>
+                  <input type="date" value={ioyForm.ioy_date} onChange={(e) => setIoyForm({ ...ioyForm, ioy_date: e.target.value })} className={inputCls} />
+                </div>
+              </div>
+
+              <div>
+                <label className={labelCls}>Notes</label>
+                <textarea value={ioyForm.notes} onChange={(e) => setIoyForm({ ...ioyForm, notes: e.target.value })} className={`${inputCls} min-h-[60px]`} />
+              </div>
+
+              <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer select-none">
+                <input type="checkbox" checked={ioyForm.settled} onChange={(e) => setIoyForm({ ...ioyForm, settled: e.target.checked })} className="rounded" />
+                Settled
+              </label>
+
+              <div className="flex gap-2">
+                <button onClick={submitIOY} className="px-4 py-2 rounded-lg bg-yellow-500 text-gray-950 font-bold text-sm">Save</button>
+                {editingIOYId && <button onClick={cancelIOYEdit} className="px-4 py-2 rounded-lg border border-gray-700 text-sm">Cancel</button>}
+              </div>
+            </div>
+
+            {/* IOY list */}
+            <div className="rounded-2xl border border-gray-800 bg-gray-900 overflow-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-gray-400 border-b border-gray-800">
+                  <tr>
+                    <th className="p-3">Who owes</th>
+                    <th>Owes to</th>
+                    <th>Item</th>
+                    <th>Qty</th>
+                    <th>Date</th>
+                    <th>Notes</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ioyRecords.map((rec) => (
+                    <tr key={rec.id} className={`border-b border-gray-800/70 align-top ${rec.settled ? "opacity-50" : ""}`}>
+                      <td className="p-3"><PayerBadge value={rec.debtor} /></td>
+                      <td className="p-3"><PayerBadge value={rec.creditor} /></td>
+                      <td className="p-3 text-gray-200">{rec.item_name}</td>
+                      <td className="p-3">×{rec.quantity}</td>
+                      <td className="p-3 whitespace-nowrap text-gray-400">{fmt(rec.ioy_date)}</td>
+                      <td className="p-3 text-gray-400 max-w-[180px] truncate">{rec.notes ?? "—"}</td>
+                      <td className="p-3">
+                        {rec.settled
+                          ? <span className="text-xs px-2 py-0.5 rounded-full bg-green-900/50 text-green-400">Settled</span>
+                          : <span className="text-xs px-2 py-0.5 rounded-full bg-orange-900/50 text-orange-400">Pending</span>}
+                      </td>
+                      <td className="p-3 text-right space-x-2 whitespace-nowrap">
+                        <button onClick={() => {
+                          setEditingIOYId(rec.id);
+                          setIoyForm({ debtor: rec.debtor, creditor: rec.creditor, item_name: rec.item_name, quantity: rec.quantity, ioy_date: rec.ioy_date ?? todayISO(), notes: rec.notes ?? "", settled: rec.settled });
+                          setTab("ioy");
+                        }} className="text-yellow-400">Edit</button>
+                        <button onClick={async () => { await deleteIOYRecord(rec.id); await loadAll(); }} className="text-red-400">Delete</button>
+                      </td>
+                    </tr>
+                  ))}
+                  {ioyRecords.length === 0 && (
+                    <tr><td colSpan={8} className="p-4 text-center text-gray-600">No IOY records</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </section>
         )}
 

@@ -128,3 +128,18 @@ class SaleFee(Base):
     received_by: Mapped[Payer | None] = mapped_column(Enum(Payer), nullable=True)
 
     sale: Mapped[Sale] = relationship(back_populates="fees")
+
+
+class IOY(Base):
+    __tablename__ = "ioy_records"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    debtor: Mapped[Payer] = mapped_column(Enum(Payer), nullable=False)
+    creditor: Mapped[Payer] = mapped_column(Enum(Payer), nullable=False)
+    item_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    quantity: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    ioy_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    settled: Mapped[bool] = mapped_column(default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
