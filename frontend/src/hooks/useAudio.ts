@@ -1,5 +1,6 @@
 let actx: AudioContext | null = null;
 const audioBuffers: Record<string, AudioBuffer> = {};
+const mediaAudio: Record<string, HTMLAudioElement> = {};
 let audioUnlocked = false;
 
 const SILENT_WAV = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQQAAAAAAA==";
@@ -7,6 +8,12 @@ const SILENT_WAV = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAESsAAC
 type NavigatorWithAudioSession = Navigator & {
   audioSession?: { type?: string };
 };
+
+function isIOS() {
+  if (typeof navigator === "undefined") return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
 
 function getCtx() {
   if (!actx) actx = new AudioContext();
@@ -20,6 +27,17 @@ function preferPlaybackAudioSession() {
   } catch {}
 }
 
+function getMediaAudio(src: string) {
+  if (!mediaAudio[src]) {
+    const audio = new Audio(src);
+    audio.preload = "auto";
+    audio.playsInline = true;
+    audio.volume = 1;
+    mediaAudio[src] = audio;
+  }
+  return mediaAudio[src];
+}
+
 async function unlockHtmlAudio() {
   const audio = new Audio(SILENT_WAV);
   audio.preload = "auto";
@@ -30,6 +48,19 @@ async function unlockHtmlAudio() {
     audio.pause();
     audio.currentTime = 0;
   } catch {}
+
+  for (const src of ["/audio/stage.mp3", "/audio/buzzer.mp3"]) {
+    try {
+      const media = getMediaAudio(src);
+      media.muted = true;
+      await media.play();
+      media.pause();
+      media.currentTime = 0;
+      media.muted = false;
+    } catch {
+      mediaAudio[src].muted = false;
+    }
+  }
 }
 
 async function ensureAudioReady() {
@@ -57,6 +88,7 @@ async function ensureAudioReady() {
 export async function loadBuffers() {
   const ctx = await ensureAudioReady();
   for (const src of ["/audio/stage.mp3", "/audio/buzzer.mp3"]) {
+    getMediaAudio(src).load();
     if (audioBuffers[src]) continue;
     try {
       const ab = await (await fetch(src)).arrayBuffer();
@@ -65,10 +97,30 @@ export async function loadBuffers() {
   }
 }
 
+async function playMediaAudio(src: string) {
+  try {
+    const audio = getMediaAudio(src);
+    audio.pause();
+    audio.currentTime = 0;
+    audio.volume = 1;
+    await audio.play();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function playBuffer(src: string) {
-  const ctx = await ensureAudioReady();
+  await ensureAudioReady();
+
+  if (isIOS() && await playMediaAudio(src)) return;
+
+  const ctx = getCtx();
   const buf = audioBuffers[src];
-  if (!buf) return;
+  if (!buf) {
+    await playMediaAudio(src);
+    return;
+  }
   const n = ctx.createBufferSource();
   n.buffer = buf;
   n.connect(ctx.destination);
