@@ -1,0 +1,269 @@
+.shopAdminTheme {
+  --shop-bg: #050505;
+  --shop-panel: #0b0b0b;
+  --shop-panel-soft: #101010;
+  --shop-border: #262626;
+  --shop-border-soft: #171717;
+  --shop-text: #f5f5f5;
+  --shop-muted: #a3a3a3;
+  --shop-dim: #737373;
+  --shop-accent: #34d399;
+  --shop-accent-soft: rgba(52, 211, 153, 0.12);
+  --shop-danger: #f87171;
+  background: var(--shop-bg);
+  color: var(--shop-text);
+}
+
+.shopAdminTheme :global(main) {
+  background:
+    radial-gradient(circle at top left, rgba(52, 211, 153, 0.08), transparent 28rem),
+    linear-gradient(180deg, #070707 0%, var(--shop-bg) 18rem);
+  color: var(--shop-text);
+}
+
+.shopAdminTheme :global(.max-w-7xl) {
+  max-width: 86rem;
+}
+
+.shopAdminTheme :global(.rounded-2xl),
+.shopAdminTheme :global(.rounded-xl),
+.shopAdminTheme :global(.rounded-lg) {
+  border-radius: 8px;
+}
+
+.shopAdminTheme :global(.bg-gray-950),
+.shopAdminTheme :global(.bg-gray-900),
+.shopAdminTheme :global(.bg-gray-800) {
+  background-color: var(--shop-panel);
+}
+
+.shopAdminTheme :global(.border-gray-800),
+.shopAdminTheme :global(.border-gray-700),
+.shopAdminTheme :global(.border-gray-600) {
+  border-color: var(--shop-border);
+}
+
+.shopAdminTheme :global(.text-gray-100),
+.shopAdminTheme :global(.text-gray-200),
+.shopAdminTheme :global(.text-gray-300) {
+  color: var(--shop-text);
+}
+
+.shopAdminTheme :global(.text-gray-400) {
+  color: var(--shop-muted);
+}
+
+.shopAdminTheme :global(.text-gray-500),
+.shopAdminTheme :global(.text-gray-600) {
+  color: var(--shop-dim);
+}
+
+.shopAdminTheme :global(.text-yellow-400),
+.shopAdminTheme :global(.text-yellow-500),
+.shopAdminTheme :global(.hover\:border-yellow-500:hover) {
+  color: var(--shop-accent);
+  border-color: rgba(52, 211, 153, 0.65);
+}
+
+.shopAdminTheme :global(.bg-yellow-500),
+.shopAdminTheme :global(.bg-yellow-500\/10) {
+  background-color: var(--shop-accent);
+  color: #050505;
+}
+
+.shopAdminTheme :global(.border-yellow-500) {
+  border-color: rgba(52, 211, 153, 0.7);
+}
+
+.shopAdminTheme :global(.grid > .rounded-2xl.border.bg-gray-900) {
+  background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.01)), var(--shop-panel);
+  border-color: var(--shop-border);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.035);
+}
+
+.shopAdminTheme :global(h1) {
+  color: #ffffff;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+.shopAdminTheme :global(h2),
+.shopAdminTheme :global(h3) {
+  color: #fafafa;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.shopAdminTheme :global(input),
+.shopAdminTheme :global(textarea),
+.shopAdminTheme :global(select) {
+  background-color: #050505;
+  border-color: var(--shop-border);
+  color: var(--shop-text);
+  border-radius: 6px;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.shopAdminTheme :global(input:focus),
+.shopAdminTheme :global(textarea:focus),
+.shopAdminTheme :global(select:focus) {
+  border-color: rgba(52, 211, 153, 0.72);
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.1);
+}
+
+.shopAdminTheme :global(input[readonly]) {
+  color: var(--shop-accent);
+  background: rgba(52, 211, 153, 0.06);
+}
+
+.shopAdminTheme :global(button),
+.shopAdminTheme :global(a) {
+  letter-spacing: 0;
+}
+
+.shopAdminTheme :global(button.bg-yellow-500) {
+  background: var(--shop-accent);
+  color: #04130d;
+  box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.18), 0 10px 30px rgba(52, 211, 153, 0.08);
+}
+
+.shopAdminTheme :global(button.bg-yellow-500:hover) {
+  background: #6ee7b7;
+}
+
+.shopAdminTheme :global(button.border),
+.shopAdminTheme :global(a.border) {
+  border-color: var(--shop-border);
+  background-color: rgba(255,255,255,0.015);
+}
+
+.shopAdminTheme :global(button.border:hover),
+.shopAdminTheme :global(a.border:hover) {
+  background-color: var(--shop-panel-soft);
+  border-color: #3f3f46;
+}
+
+.shopAdminTheme :global(.flex.gap-2.flex-wrap > button) {
+  background: transparent;
+  border-color: transparent;
+  color: var(--shop-muted);
+}
+
+.shopAdminTheme :global(.flex.gap-2.flex-wrap > button.border-yellow-500) {
+  background: #f5f5f5;
+  border-color: #f5f5f5;
+  color: #050505;
+}
+
+.shopAdminTheme :global(table) {
+  border-collapse: collapse;
+}
+
+.shopAdminTheme :global(thead) {
+  background: #080808;
+  color: var(--shop-dim);
+}
+
+.shopAdminTheme :global(th) {
+  padding-top: 0.7rem;
+  padding-bottom: 0.7rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--shop-dim);
+  border-color: var(--shop-border-soft);
+}
+
+.shopAdminTheme :global(td) {
+  border-color: var(--shop-border-soft);
+}
+
+.shopAdminTheme :global(tbody tr) {
+  transition: background-color 140ms ease;
+}
+
+.shopAdminTheme :global(tbody tr:hover) {
+  background-color: rgba(255,255,255,0.025);
+}
+
+.shopAdminTheme :global(.overflow-auto.rounded-2xl.border.bg-gray-900) {
+  background: var(--shop-panel);
+  border-color: var(--shop-border);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.035);
+}
+
+.shopAdminTheme :global(.rounded-xl.border.border-gray-800.p-3),
+.shopAdminTheme :global(.rounded-2xl.border.border-gray-800.bg-gray-900.p-4),
+.shopAdminTheme :global(.rounded-2xl.border.border-gray-800.bg-gray-900.p-5) {
+  background: var(--shop-panel);
+  border-color: var(--shop-border);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.035);
+}
+
+.shopAdminTheme :global(.border-t.border-gray-800),
+.shopAdminTheme :global(.border-b.border-gray-800) {
+  border-color: var(--shop-border-soft);
+}
+
+.shopAdminTheme :global(.text-red-400) {
+  color: var(--shop-danger);
+}
+
+.shopAdminTheme :global(.text-green-400),
+.shopAdminTheme :global(.text-green-500),
+.shopAdminTheme :global(.text-green-300) {
+  color: var(--shop-accent);
+}
+
+.shopAdminTheme :global(.bg-green-900\/50) {
+  background-color: rgba(52, 211, 153, 0.12);
+}
+
+.shopAdminTheme :global(.bg-blue-900\/50) {
+  background-color: rgba(56, 189, 248, 0.12);
+}
+
+.shopAdminTheme :global(.bg-orange-900\/50) {
+  background-color: rgba(245, 158, 11, 0.12);
+}
+
+.shopAdminTheme :global(.bg-purple-900\/50) {
+  background-color: rgba(139, 92, 246, 0.14);
+}
+
+.shopAdminTheme :global(.bg-cyan-900\/50) {
+  background-color: rgba(34, 211, 238, 0.12);
+}
+
+.shopAdminTheme :global(.fixed.inset-0) {
+  backdrop-filter: blur(10px);
+}
+
+.shopAdminTheme :global(.fixed.inset-0 .max-w-md) {
+  background: var(--shop-panel);
+  border-color: var(--shop-border);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
+.shopAdminTheme :global(.uppercase.tracking-\[0\.3em\]),
+.shopAdminTheme :global(.uppercase.tracking-\[0\.2em\]) {
+  letter-spacing: 0;
+  font-weight: 600;
+}
+
+@media (max-width: 760px) {
+  .shopAdminTheme :global(main) {
+    padding-inline: 0;
+  }
+
+  .shopAdminTheme :global(.grid.lg\:grid-cols-\[480px\,1fr\]),
+  .shopAdminTheme :global(.grid.lg\:grid-cols-\[500px\,1fr\]),
+  .shopAdminTheme :global(.grid.lg\:grid-cols-\[400px\,1fr\]) {
+    gap: 1rem;
+  }
+
+  .shopAdminTheme :global(table) {
+    min-width: 720px;
+  }
+}
