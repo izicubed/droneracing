@@ -1,20 +1,48 @@
-// Module-level singletons — survive re-renders, one AudioContext per tab
 let actx: AudioContext | null = null;
 const audioBuffers: Record<string, AudioBuffer> = {};
 let audioUnlocked = false;
+
+const SILENT_WAV = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQQAAAAAAA==";
+
+type NavigatorWithAudioSession = Navigator & {
+  audioSession?: { type?: string };
+};
 
 function getCtx() {
   if (!actx) actx = new AudioContext();
   return actx;
 }
 
+function preferPlaybackAudioSession() {
+  try {
+    const nav = navigator as NavigatorWithAudioSession;
+    if (nav.audioSession) nav.audioSession.type = "playback";
+  } catch {}
+}
+
+async function unlockHtmlAudio() {
+  const audio = new Audio(SILENT_WAV);
+  audio.preload = "auto";
+  audio.playsInline = true;
+  audio.volume = 1;
+  try {
+    await audio.play();
+    audio.pause();
+    audio.currentTime = 0;
+  } catch {}
+}
+
 async function ensureAudioReady() {
+  preferPlaybackAudioSession();
+
   const ctx = getCtx();
   if (ctx.state !== "running") {
     await ctx.resume();
   }
 
   if (!audioUnlocked) {
+    await unlockHtmlAudio();
+
     const buf = ctx.createBuffer(1, 1, ctx.sampleRate);
     const src = ctx.createBufferSource();
     src.buffer = buf;
