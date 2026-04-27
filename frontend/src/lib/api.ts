@@ -163,7 +163,7 @@ export interface ShopPurchase {
   fees_total_usd: number;
   total_cost_usd: number;
   supplier: string | null;
-  status: "paid" | "in_transit" | "completed";
+  status: "ordered" | "paid" | "in_transit" | "completed";
   purchase_date: string | null;
   notes: string | null;
   created_at: string;
@@ -186,6 +186,13 @@ export interface ShopSaleFee {
   received_by?: Payer | null;
 }
 
+export interface ShopSalePurchaseSummary {
+  id: number;
+  supplier: string | null;
+  status: "ordered" | "paid" | "in_transit" | "completed";
+  purchase_date: string | null;
+}
+
 export interface ShopSale {
   id: number;
   items: ShopSaleItem[];
@@ -199,6 +206,9 @@ export interface ShopSale {
   cogs_usd: number;
   sale_date: string | null;
   received_by: Payer | null;
+  is_prepaid: boolean;
+  purchase_id: number | null;
+  purchase: ShopSalePurchaseSummary | null;
   created_at: string;
   updated_at: string;
 }
@@ -242,12 +252,16 @@ export function getShopSales(): Promise<ShopSale[]> {
   return api.get("/admin/shop/sales");
 }
 
-export function createShopSale(data: { items: ShopSaleItem[]; fees: ShopSaleFee[]; customer_name: string; customer_contact?: string; sale_date?: string | null; notes?: string; received_by?: Payer | null }): Promise<ShopSale> {
+export function createShopSale(data: { items: ShopSaleItem[]; fees: ShopSaleFee[]; customer_name: string; customer_contact?: string; sale_date?: string | null; notes?: string; received_by?: Payer | null; is_prepaid?: boolean; purchase_id?: number | null }): Promise<ShopSale> {
   return api.authPost("/admin/shop/sales", data);
 }
 
-export function updateShopSale(id: number, data: { items: ShopSaleItem[]; fees: ShopSaleFee[]; customer_name: string; customer_contact?: string; sale_date?: string | null; notes?: string; received_by?: Payer | null }): Promise<ShopSale> {
+export function updateShopSale(id: number, data: { items: ShopSaleItem[]; fees: ShopSaleFee[]; customer_name: string; customer_contact?: string; sale_date?: string | null; notes?: string; received_by?: Payer | null; is_prepaid?: boolean; purchase_id?: number | null }): Promise<ShopSale> {
   return request(`/admin/shop/sales/${id}`, { method: "PATCH", body: JSON.stringify(data), headers: authHeader() });
+}
+
+export function fulfillShopSale(id: number): Promise<ShopSale> {
+  return request(`/admin/shop/sales/${id}/fulfill`, { method: "POST", headers: authHeader() });
 }
 
 export function deleteShopSale(id: number): Promise<void> {
@@ -258,12 +272,16 @@ export function getShopPurchases(): Promise<ShopPurchase[]> {
   return api.get("/admin/shop/purchases");
 }
 
-export function createShopPurchase(data: { items: ShopPurchaseItem[]; fees: ShopPurchaseFee[]; supplier?: string; status: "paid" | "in_transit" | "completed"; purchase_date?: string | null; notes?: string }): Promise<ShopPurchase> {
+export function createShopPurchase(data: { items: ShopPurchaseItem[]; fees: ShopPurchaseFee[]; supplier?: string; status: "ordered" | "paid" | "in_transit" | "completed"; purchase_date?: string | null; notes?: string }): Promise<ShopPurchase> {
   return api.authPost("/admin/shop/purchases", data);
 }
 
-export function updateShopPurchase(id: number, data: { items: ShopPurchaseItem[]; fees: ShopPurchaseFee[]; supplier?: string; status: "paid" | "in_transit" | "completed"; purchase_date?: string | null; notes?: string }): Promise<ShopPurchase> {
+export function updateShopPurchase(id: number, data: { items: ShopPurchaseItem[]; fees: ShopPurchaseFee[]; supplier?: string; status: "ordered" | "paid" | "in_transit" | "completed"; purchase_date?: string | null; notes?: string }): Promise<ShopPurchase> {
   return request(`/admin/shop/purchases/${id}`, { method: "PATCH", body: JSON.stringify(data), headers: authHeader() });
+}
+
+export function getShopPurchaseItems(purchaseId: number): Promise<{ item_name: string; quantity: number; unit_cost_usd: number }[]> {
+  return api.get(`/admin/shop/purchases/${purchaseId}/items`);
 }
 
 

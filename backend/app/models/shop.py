@@ -8,6 +8,7 @@ from app.database import Base
 
 
 class PurchaseStatus(str, enum.Enum):
+    ordered = "ordered"
     paid = "paid"
     in_transit = "in_transit"
     completed = "completed"
@@ -89,6 +90,8 @@ class Sale(Base):
     cogs_usd: Mapped[float] = mapped_column(Float, default=0, nullable=False)
     sale_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     received_by: Mapped[Payer | None] = mapped_column(Enum(Payer), nullable=True)
+    is_prepaid: Mapped[bool] = mapped_column(default=False, nullable=False)
+    purchase_id: Mapped[int | None] = mapped_column(ForeignKey("purchases.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -102,6 +105,7 @@ class Sale(Base):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
+    purchase: Mapped["Purchase | None"] = relationship(lazy="selectin")
 
 
 class SaleItem(Base):

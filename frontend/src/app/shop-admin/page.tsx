@@ -19,12 +19,14 @@ import {
   deleteIOYRecord,
   deleteShopPurchase,
   deleteShopSale,
+  fulfillShopSale,
   getIOYRecords,
   getMe,
   getShopChartData,
   getShopDashboard,
   getShopInventory,
   getShopPurchases,
+  getShopPurchaseItems,
   getShopSales,
   InventoryItem,
   IOYRecord,
@@ -248,7 +250,7 @@ export default function ShopAdminPage() {
   const [saleItems, setSaleItems] = useState<ShopSaleItem[]>([emptySaleItem()]);
   const [saleFees, setSaleFees] = useState<ShopSaleFee[]>([]);
   const [saleMeta, setSaleMeta] = useState({
-    customer_name: "", customer_contact: "", sale_date: todayISO(), notes: "", received_by: null as Payer | null,
+    customer_name: "", customer_contact: "", sale_date: todayISO(), notes: "", received_by: null as Payer | null, is_prepaid: false, purchase_id: null as number | null,
   });
   const [editingSaleId, setEditingSaleId] = useState<number | null>(null);
   const [profitSale, setProfitSale] = useState<ShopSale | null>(null);
@@ -257,7 +259,7 @@ export default function ShopAdminPage() {
   const [purchaseItems, setPurchaseItems] = useState<ShopPurchaseItem[]>([emptyPurchaseItem()]);
   const [purchaseFees, setPurchaseFees] = useState<ShopPurchaseFee[]>([]);
   const [purchaseMeta, setPurchaseMeta] = useState({
-    supplier: "", status: "paid" as "paid" | "in_transit" | "completed",
+    supplier: "", status: "ordered" as "ordered" | "paid" | "in_transit" | "completed",
     purchase_date: todayISO(), notes: "",
   });
   const [editingPurchaseId, setEditingPurchaseId] = useState<number | null>(null);
@@ -321,7 +323,7 @@ export default function ShopAdminPage() {
       else await createShopSale(payload);
       setSaleItems([emptySaleItem()]);
       setSaleFees([]);
-      setSaleMeta({ customer_name: "", customer_contact: "", sale_date: todayISO(), notes: "", received_by: null });
+      setSaleMeta({ customer_name: "", customer_contact: "", sale_date: todayISO(), notes: "", received_by: null, is_prepaid: false, purchase_id: null });
       setEditingSaleId(null);
       await loadAll();
     } catch (e) {
@@ -354,14 +356,14 @@ export default function ShopAdminPage() {
     setEditingSaleId(null);
     setSaleItems([emptySaleItem()]);
     setSaleFees([]);
-    setSaleMeta({ customer_name: "", customer_contact: "", sale_date: todayISO(), notes: "", received_by: null });
+    setSaleMeta({ customer_name: "", customer_contact: "", sale_date: todayISO(), notes: "", received_by: null, is_prepaid: false, purchase_id: null });
   }
 
   function cancelPurchaseEdit() {
     setEditingPurchaseId(null);
     setPurchaseItems([emptyPurchaseItem()]);
     setPurchaseFees([]);
-    setPurchaseMeta({ supplier: "", status: "paid", purchase_date: todayISO(), notes: "" });
+    setPurchaseMeta({ supplier: "", status: "ordered", purchase_date: todayISO(), notes: "" });
   }
 
   async function submitIOY() {
@@ -433,8 +435,75 @@ export default function ShopAdminPage() {
         {/* ===== SALES TAB ===== */}
         {tab === "sales" && (
           <section className="grid lg:grid-cols-[480px,1fr] gap-6">
-            <div className="rounded-2xl border border-gray-800 bg-gray-900 p-4 space-y-3">
-              <h2 className="text-lg font-bold">{editingSaleId ? "Edit sale" : "Add sale"}</h2>
+            <div className={`rounded-2xl border p-4 space-y-3 ${saleMeta.is_prepaid ? "border-orange-700 bg-orange-950/20" : "border-gray-800 bg-gray-900"}`}>
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold">{editingSaleId ? "Edit sale" : "Add sale"}</h2>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <span className={`text-xs font-semibold ${saleMeta.is_prepaid ? "text-orange-400" : "text-gray-500"}`}>Prepaid</span>
+                  <button
+                    type="button"
+                    onClick={() => setSaleMeta((m) => ({ ...m, is_prepaid: !m.is_prepaid }))}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${saleMeta.is_prepaid ? "bg-orange-500" : "bg-gray-700"}`}
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${saleMeta.is_prepaid ? "translate-x-4" : "translate-x-1"}`} />
+                  </button>
+                </label>
+              </div>
+
+              {saleMeta.is_prepaid && (
+                <div className="rounded-lg bg-orange-900/30 border border-orange-800/50 px-3 py-2 text-xs text-orange-300">
+                  Предоплата — оплата получена, товар ещё в пути. Склад не списывается. После поступления товара нажмите «Выдать».
+                </div>
+              )}
+
+              {saleMeta.is_prepaid && (
+                <div>
+                  <label className={labelCls}>Связать с закупкой (необязательно)</label>
+                  <div className="flex gap-2 items-center">
+                    <select
+                      value={saleMeta.purchase_id ?? ""}
+                      onChange={async (e) => {
+                        const pid = e.target.value ? Number(e.target.value) : null;
+                        setSaleMeta((m) => ({ ...m, purchase_id: pid }));
+                        if (pid) {
+                          try {
+                            const pItems = await getShopPurchaseItems(pid);
+                            if (pItems.length > 0) {
+                              setSaleItems(pItems.map((pi) => ({
+                                item_name: pi.item_name,
+                                quantity: pi.quantity,
+                                unit_price_usd: 0,
+                                total_price_usd: 0,
+                              })));
+                            }
+                          } catch { /* ignore */ }
+                        }
+                      }}
+                      className={inputCls}
+                    >
+                      <option value="">— не привязывать —</option>
+                      {purchases
+                        .filter((p) => p.status === "ordered" || p.status === "paid" || p.status === "in_transit")
+                        .map((p) => (
+                          <option key={p.id} value={p.id}>
+                            #{p.id} {p.supplier ? `· ${p.supplier}` : ""} · {p.status} · {p.items.map((i) => `${i.item_name}×${i.quantity}`).join(", ")}
+                          </option>
+                        ))}
+                    </select>
+                    {saleMeta.purchase_id && (
+                      <button
+                        type="button"
+                        onClick={() => setSaleMeta((m) => ({ ...m, purchase_id: null }))}
+                        className="text-gray-500 hover:text-gray-300 text-lg leading-none px-1 shrink-0"
+                        title="Снять привязку"
+                      >×</button>
+                    )}
+                  </div>
+                  {saleMeta.purchase_id && (
+                    <p className="text-[11px] text-orange-400 mt-1">Товары из закупки подставлены — укажи цены продажи.</p>
+                  )}
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
@@ -468,16 +537,25 @@ export default function ShopAdminPage() {
                       <p className="text-sm font-semibold">Item #{index + 1}</p>
                       {saleItems.length > 1 && <button onClick={() => setSaleItems((prev) => prev.filter((_, i) => i !== index))} className="text-red-400 text-xs">Remove</button>}
                     </div>
-                    <StockItemPicker
-                      value={item.item_name}
-                      onChange={(name) => updateSaleItem(index, { item_name: name })}
-                      onSelect={(inv) => updateSaleItem(index, { item_name: inv.item_name })}
-                      inventory={inventory}
-                      className={inputCls}
-                    />
+                    {saleMeta.is_prepaid ? (
+                      <input
+                        placeholder="Item name"
+                        value={item.item_name}
+                        onChange={(e) => updateSaleItem(index, { item_name: e.target.value })}
+                        className={inputCls}
+                      />
+                    ) : (
+                      <StockItemPicker
+                        value={item.item_name}
+                        onChange={(name) => updateSaleItem(index, { item_name: name })}
+                        onSelect={(inv) => updateSaleItem(index, { item_name: inv.item_name })}
+                        inventory={inventory}
+                        className={inputCls}
+                      />
+                    )}
                     <div className="grid grid-cols-3 gap-2">
                       <div><label className={labelCls}>Qty</label><input type="number" min={1} value={item.quantity} onChange={(e) => updateSaleItem(index, { quantity: Number(e.target.value) })} className={inputCls} /></div>
-                      <div><label className={labelCls}>Unit $</label><input type="text" inputMode="decimal" defaultValue={item.unit_price_usd || ""} key={`su-${index}-${editingSaleId}`} onBlur={(e) => updateSaleItem(index, { unit_price_usd: parseAmount(e.target.value) })} className={inputCls} placeholder="0.00" /></div>
+                      <div><label className={labelCls}>Unit $</label><input type="text" inputMode="decimal" defaultValue={item.unit_price_usd || ""} key={`su-${index}-${editingSaleId}-${saleMeta.is_prepaid}`} onBlur={(e) => updateSaleItem(index, { unit_price_usd: parseAmount(e.target.value) })} className={inputCls} placeholder="0.00" /></div>
                       <div><label className={labelCls}>Total $</label><input type="text" readOnly value={item.total_price_usd.toFixed(2)} className={`${inputCls} text-yellow-400 cursor-default`} /></div>
                     </div>
                   </div>
@@ -522,13 +600,18 @@ export default function ShopAdminPage() {
             <div className="rounded-2xl border border-gray-800 bg-gray-900 overflow-auto">
               <table className="w-full text-sm">
                 <thead className="text-left text-gray-400 border-b border-gray-800">
-                  <tr><th className="p-3">Customer</th><th>Items</th><th>Fees</th><th>Total</th><th>Received by</th><th>Sale date</th><th></th></tr>
+                  <tr><th className="p-3">Customer</th><th>Items</th><th>Fees</th><th>Total</th><th>Received by</th><th>Sale date</th><th>Purchase</th><th></th></tr>
                 </thead>
                 <tbody>
                   {sales.map((sale) => (
-                    <tr key={sale.id} className="border-b border-gray-800/70 align-top">
+                    <tr key={sale.id} className={`border-b border-gray-800/70 align-top ${sale.is_prepaid ? "bg-orange-950/10" : ""}`}>
                       <td className="p-3">
-                        {sale.customer_name}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span>{sale.customer_name}</span>
+                          {sale.is_prepaid && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-900/60 text-orange-300 border border-orange-700/50 whitespace-nowrap">Предоплата</span>
+                          )}
+                        </div>
                         <div className="text-xs text-gray-500">{sale.customer_contact ?? "—"}</div>
                       </td>
                       <td className="p-3">{sale.items.map((item) => <div key={item.id ?? `${item.item_name}-${item.quantity}`}>{item.item_name} × {item.quantity}</div>)}</td>
@@ -545,11 +628,33 @@ export default function ShopAdminPage() {
                       <td className="p-3 whitespace-nowrap">{money(sale.total_price_usd)}</td>
                       <td className="p-3"><PayerBadge value={sale.received_by} /></td>
                       <td className="p-3 whitespace-nowrap text-gray-400">{fmt(sale.sale_date ?? sale.created_at)}</td>
+                      <td className="p-3">
+                        {sale.purchase ? (
+                          <div className="text-xs">
+                            <span className="text-gray-400">#{sale.purchase.id}</span>
+                            {sale.purchase.supplier && <span className="text-gray-300 ml-1">{sale.purchase.supplier}</span>}
+                            <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${
+                              sale.purchase.status === "ordered" ? "bg-yellow-900/50 text-yellow-400" :
+                              sale.purchase.status === "in_transit" ? "bg-blue-900/50 text-blue-400" :
+                              sale.purchase.status === "completed" ? "bg-green-900/50 text-green-400" :
+                              "bg-gray-800 text-gray-400"
+                            }`}>{sale.purchase.status}</span>
+                          </div>
+                        ) : <span className="text-gray-600 text-xs">—</span>}
+                      </td>
                       <td className="pr-3 p-3 text-right space-x-2 whitespace-nowrap">
-                        <button onClick={() => setProfitSale(sale)} className="text-green-400">Profit</button>
+                        {sale.is_prepaid ? (
+                          <button onClick={async () => {
+                            setError("");
+                            try { await fulfillShopSale(sale.id); await loadAll(); }
+                            catch (e) { setError(e instanceof Error ? e.message : "Failed to fulfill sale"); }
+                          }} className="text-orange-400 font-semibold">Выдать</button>
+                        ) : (
+                          <button onClick={() => setProfitSale(sale)} className="text-green-400">Profit</button>
+                        )}
                         <button onClick={() => {
                           setEditingSaleId(sale.id);
-                          setSaleMeta({ customer_name: sale.customer_name, customer_contact: sale.customer_contact ?? "", sale_date: sale.sale_date ?? sale.created_at.slice(0, 10), notes: sale.notes ?? "", received_by: sale.received_by });
+                          setSaleMeta({ customer_name: sale.customer_name, customer_contact: sale.customer_contact ?? "", sale_date: sale.sale_date ?? sale.created_at.slice(0, 10), notes: sale.notes ?? "", received_by: sale.received_by, is_prepaid: sale.is_prepaid, purchase_id: sale.purchase_id });
                           setSaleItems(sale.items.map((item) => ({ item_name: item.item_name, quantity: item.quantity, unit_price_usd: item.unit_price_usd, total_price_usd: item.total_price_usd })));
                           setSaleFees(sale.fees.map((f) => ({ name: f.name, amount_usd: f.amount_usd, received_by: f.received_by ?? null })));
                           setTab("sales");
@@ -583,7 +688,8 @@ export default function ShopAdminPage() {
 
               <div>
                 <label className={labelCls}>Status</label>
-                <select value={purchaseMeta.status} onChange={(e) => setPurchaseMeta({ ...purchaseMeta, status: e.target.value as "paid" | "in_transit" | "completed" })} className={inputCls}>
+                <select value={purchaseMeta.status} onChange={(e) => setPurchaseMeta({ ...purchaseMeta, status: e.target.value as "ordered" | "paid" | "in_transit" | "completed" })} className={inputCls}>
+                  <option value="ordered">Ordered (not paid)</option>
                   <option value="paid">Paid</option>
                   <option value="in_transit">In transit</option>
                   <option value="completed">Completed</option>
@@ -675,15 +781,20 @@ export default function ShopAdminPage() {
                       </td>
                       <td className="p-3 whitespace-nowrap font-semibold">{money(purchase.total_cost_usd)}</td>
                       <td className="p-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${purchase.status === "completed" ? "bg-green-900/50 text-green-400" : purchase.status === "in_transit" ? "bg-blue-900/50 text-blue-400" : "bg-gray-800 text-gray-400"}`}>
-                          {purchase.status}
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          purchase.status === "completed" ? "bg-green-900/50 text-green-400" :
+                          purchase.status === "in_transit" ? "bg-blue-900/50 text-blue-400" :
+                          purchase.status === "ordered" ? "bg-yellow-900/50 text-yellow-400" :
+                          "bg-gray-800 text-gray-400"
+                        }`}>
+                          {purchase.status === "ordered" ? "ordered (not paid)" : purchase.status}
                         </span>
                       </td>
                       <td className="p-3 whitespace-nowrap text-gray-400">{fmt(purchase.purchase_date ?? purchase.created_at)}</td>
                       <td className="pr-3 p-3 text-right space-x-2 whitespace-nowrap">
                         <button onClick={() => {
                           setEditingPurchaseId(purchase.id);
-                          setPurchaseMeta({ supplier: purchase.supplier ?? "", status: purchase.status, purchase_date: purchase.purchase_date ?? purchase.created_at.slice(0, 10), notes: purchase.notes ?? "" });
+                          setPurchaseMeta({ supplier: purchase.supplier ?? "", status: purchase.status as "ordered" | "paid" | "in_transit" | "completed", purchase_date: purchase.purchase_date ?? purchase.created_at.slice(0, 10), notes: purchase.notes ?? "" });
                           setPurchaseItems(purchase.items.map((item) => ({ item_name: item.item_name, quantity: item.quantity, unit_cost_usd: item.unit_cost_usd, total_cost_usd: item.total_cost_usd, paid_by: item.paid_by ?? null })));
                           setPurchaseFees(purchase.fees.map((f) => ({ name: f.name, amount_usd: f.amount_usd, paid_by: f.paid_by ?? null })));
                           setTab("purchases");

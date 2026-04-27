@@ -67,6 +67,8 @@ class SaleIn(BaseModel):
     sale_date: date | None = None
     notes: str | None = None
     received_by: Payer | None = None
+    is_prepaid: bool = False
+    purchase_id: int | None = None
 
 
 async def _get_inventory_item(db: AsyncSession, item_name: str) -> InventoryItem | None:
@@ -184,6 +186,15 @@ def _purchase_to_dict(purchase: Purchase) -> dict:
 def _sale_to_dict(sale: Sale) -> dict:
     items_total = _sale_items_total(sale)
     fees_total = _sale_fees_total(sale)
+    purchase_summary = None
+    if sale.purchase:
+        p = sale.purchase
+        purchase_summary = {
+            "id": p.id,
+            "supplier": p.supplier,
+            "status": p.status,
+            "purchase_date": p.purchase_date.isoformat() if p.purchase_date else None,
+        }
     return {
         "id": sale.id,
         "customer_name": sale.customer_name,
@@ -195,6 +206,9 @@ def _sale_to_dict(sale: Sale) -> dict:
         "total_price_usd": round(items_total + fees_total, 2),
         "cogs_usd": _sale_cogs(sale),
         "received_by": sale.received_by,
+        "is_prepaid": sale.is_prepaid,
+        "purchase_id": sale.purchase_id,
+        "purchase": purchase_summary,
         "created_at": sale.created_at,
         "updated_at": sale.updated_at,
         "fees": [{"id": f.id, "name": f.name, "amount_usd": f.amount_usd, "received_by": f.received_by} for f in sale.fees],
@@ -373,6 +387,17 @@ async def delete_purchase(purchase_id: int, _: User = Depends(require_shop_admin
     return {"ok": True}
 
 
+@router.get("/purchases/{purchase_id}/items")
+async def get_purchase_items(purchase_id: int, _: User = Depends(require_shop_admin), db: AsyncSession = Depends(get_db)):
+    purchase = await db.get(Purchase, purchase_id, options=[selectinload(Purchase.items)])
+    if not purchase:
+        raise HTTPException(status_code=404, detail="Purchase not found")
+    return [
+        {"item_name": item.item_name, "quantity": item.quantity, "unit_cost_usd": item.unit_cost_usd}
+        for item in purchase.items
+    ]
+
+
 @router.get("/sales")
 async def list_sales(_: User = Depends(require_shop_admin), db: AsyncSession = Depends(get_db)):
     rows = (await db.execute(
@@ -384,9 +409,12 @@ async def list_sales(_: User = Depends(require_shop_admin), db: AsyncSession = D
 @router.post("/sales")
 async def create_sale(body: SaleIn, _: User = Depends(require_shop_admin), db: AsyncSession = Depends(get_db)):
     items: list[SaleItem] = []
-    for line in body.items:
-        cogs = await _consume_inventory_for_sale_line(db, line.item_name, line.quantity)
-        items.append(SaleItem(**line.model_dump(), cogs_usd=cogs))
+    if body.is_prepaid:
+        items = [SaleItem(**line.model_dump(), cogs_usd=0) for line in body.items]
+    else:
+        for line in body.items:
+            cogs = await _consume_inventory_for_sale_line(db, line.item_name, line.quantity)
+            items.append(SaleItem(**line.model_dump(), cogs_usd=cogs))
     fees = [SaleFee(**fee.model_dump()) for fee in body.fees if fee.name.strip()]
     sale = Sale(
         customer_name=body.customer_name,
@@ -394,6 +422,8 @@ async def create_sale(body: SaleIn, _: User = Depends(require_shop_admin), db: A
         sale_date=body.sale_date,
         notes=body.notes,
         received_by=body.received_by,
+        is_prepaid=body.is_prepaid,
+        purchase_id=body.purchase_id,
         total_price_usd=round(sum(item.total_price_usd for item in items) + sum(f.amount_usd for f in fees), 2),
         cogs_usd=round(sum(item.cogs_usd for item in items), 2),
         items=items,
@@ -410,12 +440,18 @@ async def update_sale(sale_id: int, body: SaleIn, _: User = Depends(require_shop
     sale = await db.get(Sale, sale_id, options=[selectinload(Sale.items), selectinload(Sale.fees)])
     if not sale:
         raise HTTPException(status_code=404, detail="Sale not found")
-    await _restore_inventory_from_sale(db, sale)
+
+    # Only restore inventory if the sale previously consumed stock (was not prepaid)
+    if not sale.is_prepaid:
+        await _restore_inventory_from_sale(db, sale)
 
     items: list[SaleItem] = []
-    for line in body.items:
-        cogs = await _consume_inventory_for_sale_line(db, line.item_name, line.quantity)
-        items.append(SaleItem(**line.model_dump(), cogs_usd=cogs))
+    if body.is_prepaid:
+        items = [SaleItem(**line.model_dump(), cogs_usd=0) for line in body.items]
+    else:
+        for line in body.items:
+            cogs = await _consume_inventory_for_sale_line(db, line.item_name, line.quantity)
+            items.append(SaleItem(**line.model_dump(), cogs_usd=cogs))
 
     fees = [SaleFee(**fee.model_dump()) for fee in body.fees if fee.name.strip()]
     sale.customer_name = body.customer_name
@@ -423,10 +459,33 @@ async def update_sale(sale_id: int, body: SaleIn, _: User = Depends(require_shop
     sale.sale_date = body.sale_date
     sale.notes = body.notes
     sale.received_by = body.received_by
+    sale.is_prepaid = body.is_prepaid
+    sale.purchase_id = body.purchase_id
     sale.items = items
     sale.fees = fees
     sale.total_price_usd = round(sum(item.total_price_usd for item in items) + sum(f.amount_usd for f in fees), 2)
     sale.cogs_usd = round(sum(item.cogs_usd for item in items), 2)
+
+    await db.commit()
+    await db.refresh(sale)
+    return _sale_to_dict(sale)
+
+
+@router.post("/sales/{sale_id}/fulfill")
+async def fulfill_prepaid_sale(sale_id: int, _: User = Depends(require_shop_admin), db: AsyncSession = Depends(get_db)):
+    """Convert a prepaid sale to a fulfilled sale by consuming inventory stock."""
+    sale = await db.get(Sale, sale_id, options=[selectinload(Sale.items), selectinload(Sale.fees)])
+    if not sale:
+        raise HTTPException(status_code=404, detail="Sale not found")
+    if not sale.is_prepaid:
+        raise HTTPException(status_code=400, detail="Sale is not marked as prepaid")
+
+    for item in sale.items:
+        cogs = await _consume_inventory_for_sale_line(db, item.item_name, item.quantity)
+        item.cogs_usd = cogs
+
+    sale.is_prepaid = False
+    sale.cogs_usd = round(sum(item.cogs_usd for item in sale.items), 2)
 
     await db.commit()
     await db.refresh(sale)
@@ -438,7 +497,8 @@ async def delete_sale(sale_id: int, _: User = Depends(require_shop_admin), db: A
     sale = await db.get(Sale, sale_id, options=[selectinload(Sale.items), selectinload(Sale.fees)])
     if not sale:
         raise HTTPException(status_code=404, detail="Sale not found")
-    await _restore_inventory_from_sale(db, sale)
+    if not sale.is_prepaid:
+        await _restore_inventory_from_sale(db, sale)
     await db.delete(sale)
     await db.commit()
     return {"ok": True}
