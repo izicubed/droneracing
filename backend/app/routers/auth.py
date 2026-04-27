@@ -57,6 +57,20 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
     return TokenResponse(access_token=create_access_token(user.id))
 
 
+@router.post("/promote-admin")
+async def promote_admin(body: dict, db: AsyncSession = Depends(get_db)):
+    import os
+    secret = os.environ.get("ADMIN_BOOTSTRAP_SECRET", "")
+    if not secret or body.get("secret") != secret:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    user = await get_user_by_email(db, body.get("email", ""))
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.role = UserRole.admin
+    await db.commit()
+    return {"ok": True, "email": user.email, "role": user.role}
+
+
 @router.get("/me")
 async def me(current_user: User = Depends(get_current_user)):
     return {"id": current_user.id, "email": current_user.email, "role": current_user.role}
