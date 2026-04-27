@@ -36,12 +36,10 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
     existing = await get_user_by_email(db, body.email)
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
-    allowed_roles = {r.value for r in UserRole if r != UserRole.superadmin}
-    role = UserRole(body.role) if body.role in allowed_roles else UserRole.pilot
     user = User(
         email=body.email,
         password_hash=hash_password(body.password),
-        role=role,
+        role=UserRole.pilot,
     )
     db.add(user)
     await db.commit()
@@ -55,20 +53,6 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
     if not user or not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     return TokenResponse(access_token=create_access_token(user.id))
-
-
-@router.post("/promote-admin")
-async def promote_admin(body: dict, db: AsyncSession = Depends(get_db)):
-    import os
-    secret = os.environ.get("ADMIN_BOOTSTRAP_SECRET", "")
-    if not secret or body.get("secret") != secret:
-        raise HTTPException(status_code=403, detail="Forbidden")
-    user = await get_user_by_email(db, body.get("email", ""))
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    user.role = UserRole.admin
-    await db.commit()
-    return {"ok": True, "email": user.email, "role": user.role}
 
 
 @router.get("/me")
