@@ -36,10 +36,12 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
     existing = await get_user_by_email(db, body.email)
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
+    allowed_roles = {r.value for r in UserRole if r != UserRole.superadmin}
+    role = UserRole(body.role) if body.role in allowed_roles else UserRole.pilot
     user = User(
         email=body.email,
         password_hash=hash_password(body.password),
-        role=UserRole.pilot,
+        role=role,
     )
     db.add(user)
     await db.commit()
